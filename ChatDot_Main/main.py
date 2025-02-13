@@ -1,13 +1,24 @@
+import os
+os.environ['PYTHONIOENCODING'] = 'UTF-8'
+
 import sys
 from PyQt5.QtWidgets import QApplication
-from floating_ball import FloatingBall  # 导入 FloatingBall 类
+from floating_ball import FloatingBall
+from setting_window import SettingWindow
+from chat_window import ChatWindow #  !!! 导入 ChatWindow !!!
 
-def main():
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
-    fb = FloatingBall() # 创建 FloatingBall 实例
-    fb.setWindowTitle('透明玻璃珠悬浮球') # 窗口标题 -  也可以在这里设置
-    fb.show()
-    sys.exit(app.exec_())
 
-if __name__ == '__main__':
-    main()
+    chat_window = ChatWindow() #  !!!  先创建 ChatWindow 实例 !!!
+    floating_ball = FloatingBall(chat_window)
+    floating_ball.show()
+
+    setting_dialog = SettingWindow(floating_ball)
+    floating_ball.setting_dialog = setting_dialog
+
+
+    setting_dialog.api_connected_signal.connect(chat_window.enable_send_buttons) #  !!!  连接 API 连接成功信号 !!!
+
+    sys.exit(app.exec_())
