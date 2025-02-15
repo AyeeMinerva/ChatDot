@@ -9,6 +9,7 @@ from chat_window import ChatWindow #  !!! 导入 ChatWindow !!!
 
 
 if __name__ == "__main__":
+    
     app = QApplication(sys.argv)
 
     chat_window = ChatWindow() #  !!!  先创建 ChatWindow 实例 !!!

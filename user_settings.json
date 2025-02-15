@@ -1,0 +1,5 @@
+{
+    "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    "api_key": "REDACTED",
+    "model_params": {}
+}
