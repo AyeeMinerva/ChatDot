@@ -4,196 +4,167 @@
 import sys
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QOpenGLWidget
-from PyQt5.QtGui import (
-    QOpenGLShader, QOpenGLShaderProgram, QOpenGLBuffer,
-    QOpenGLVertexArrayObject, QOpenGLTexture, QSurfaceFormat, QImage
-)
-from PyQt5.QtCore import QTimer, QPoint
-from PyQt5.QtOpenGL import QOpenGLFunctions
 
+class LensWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
 
-class GlassBeadWidget(QOpenGLWidget, QOpenGLFunctions):
-    def __init__(self, parent=None):
-        super(GlassBeadWidget, self).__init__(parent)
-        self.desktop_texture = None     # 用于保存桌面截图纹理
-        self.shader_program = None      # OpenGL 着色器程序
-        self.vbo = None                 # 顶点缓冲区对象
-        self.vao = None                 # 顶点数组对象
-        self.drag_position = None       # 拖动时记录鼠标偏移
-
-        # 定时器：每 30 毫秒更新一次桌面纹理（约 33fps）
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.updateDesktopTexture)
-        self.timer.start(30)
-
-        # 设置窗口：无边框、始终置顶、工具窗口，并要求透明背景
+        # 设置无边框、置顶和工具窗口（避免出现在任务栏中）
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint |
+                            QtCore.Qt.WindowStaysOnTopHint |
+                            QtCore.Qt.Tool)
+        # 背景透明
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.Tool
-        )
-        # 限制窗口显示区域为圆形（与窗口矩形重合）
+        # 禁止系统自动清除背景（减少闪烁）
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.resize(300, 300)
+        # 限制绘制区域为圆形
         self.setMask(QtGui.QRegion(self.rect(), QtGui.QRegion.Ellipse))
 
-    def initializeGL(self):
-        self.initializeOpenGLFunctions()
-        self.glClearColor(0.0, 0.0, 0.0, 0.0)
+        # 拖动起始位置
+        self.drag_position = None
 
-        # --- 构建着色器程序 ---
-        self.shader_program = QOpenGLShaderProgram(self)
+        # 缓存截屏和经过透镜扭曲后的图像
+        self.bg_cache = None
+        self.distorted_cache = None
 
-        vertex_shader_source = """
-        #version 330 core
-        layout(location = 0) in vec2 position;
-        layout(location = 1) in vec2 texCoord;
-        out vec2 vTexCoord;
-        void main() {
-            gl_Position = vec4(position, 0.0, 1.0);
-            vTexCoord = texCoord;
-        }
-        """
-        fragment_shader_source = """
-        #version 330 core
-        in vec2 vTexCoord;
-        out vec4 fragColor;
-        uniform sampler2D desktopTexture;
-        uniform float magnification;
-        void main(){
-            // 用纹理坐标（0~1）计算中心偏移
-            vec2 center = vec2(0.5, 0.5);
-            vec2 uv = vTexCoord;
-            vec2 offset = uv - center;
-            float r = length(offset);
-            float radius = 0.5;  // 半径（归一化）
-            float factor = 1.0;
-            if(r < radius){
-                // 中心放大：距离越近，放大越多
-                factor = (magnification - 1.0) * (1.0 - (r / radius) * (r / radius)) + 1.0;
-            }
-            vec2 distortedUV = center + offset / factor;
-            vec4 color = texture(desktopTexture, distortedUV);
+        # 标记是否正在更新中，避免重入
+        self.updating = False
 
-            // --- 添加玻璃珠高光效果 ---
-            // 以一个预设的高光中心产生平滑高光（可根据需要调整参数）
-            vec2 highlightCenter = vec2(0.35, 0.35);
-            float d = distance(uv, highlightCenter);
-            float highlight = smoothstep(0.4, 0.0, d); // 距离越近，高光越强
-            color.rgb = mix(color.rgb, vec3(1.0), highlight * 0.3);
+        # 定时器：动态刷新背景（例如每 100 毫秒一次，可根据需要调整）
+        self.bg_timer = QtCore.QTimer(self)
+        self.bg_timer.timeout.connect(self.updateBackground)
+        self.bg_timer.start(100)
 
-            fragColor = color;
-        }
-        """
-        self.shader_program.addShaderFromSourceCode(QOpenGLShader.Vertex, vertex_shader_source)
-        self.shader_program.addShaderFromSourceCode(QOpenGLShader.Fragment, fragment_shader_source)
-        self.shader_program.link()
+    def updateBackground(self):
+        """更新当前窗口所在区域的桌面背景，并计算透镜扭曲效果。"""
+        if self.updating:
+            return
+        self.updating = True
 
-        # --- 设置用于绘制满屏四边形的顶点数据 ---
-        # 顶点数据：每个顶点包含 2 个位置坐标和 2 个纹理坐标
-        vertices = np.array([
-            # positions    # texCoords
-            -1.0, -1.0,    0.0, 0.0,
-             1.0, -1.0,    1.0, 0.0,
-            -1.0,  1.0,    0.0, 1.0,
-             1.0,  1.0,    1.0, 1.0,
-        ], dtype=np.float32)
-
-        # --- 创建顶点数组对象（VAO） ---
-        self.vao = QOpenGLVertexArrayObject(self)
-        self.vao.create()
-        self.vao.bind()
-
-        # --- 创建顶点缓冲对象（VBO）并上传数据 ---
-        self.vbo = QOpenGLBuffer(QOpenGLBuffer.VertexBuffer)
-        self.vbo.create()
-        self.vbo.bind()
-        self.vbo.allocate(vertices.tobytes(), vertices.nbytes)
-
-        # 设置属性指针：注意 stride 为 4 个浮点数（4*4=16 字节）
-        # 位置属性：起始偏移 0，2 个浮点数
-        self.shader_program.enableAttributeArray(0)
-        self.shader_program.setAttributeBuffer(0, self.GL_FLOAT, 0, 2, 4 * 4)
-        # 纹理坐标属性：起始偏移 2*4 字节，2 个浮点数
-        self.shader_program.enableAttributeArray(1)
-        self.shader_program.setAttributeBuffer(1, self.GL_FLOAT, 2 * 4, 2, 4 * 4)
-
-        self.vbo.release()
-        self.vao.release()
-
-    def updateDesktopTexture(self):
-        """
-        每次调用时：  
-         1. 根据窗口在桌面上的位置，用 QScreen.grabWindow 获取该区域截图  
-         2. 临时将窗口透明，避免截到自身内容  
-         3. 将截图上传到 GPU 纹理
-        """
-        pos = self.mapToGlobal(QPoint(0, 0))
+        pos = self.mapToGlobal(QtCore.QPoint(0, 0))
         screen = QtWidgets.QApplication.primaryScreen()
-        # 为避免截图包含本窗口内容，先将窗口透明
+
+        # 为减少闪烁，先关闭窗口更新，并临时调低窗口不透明度
+        self.setUpdatesEnabled(False)
         old_opacity = self.windowOpacity()
         self.setWindowOpacity(0)
+        # 让界面立即刷新（但不响应用户输入）
         QtWidgets.QApplication.processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
-        pixmap = screen.grabWindow(0, pos.x(), pos.y(), self.width(), self.height())
+
+        # 截取窗口所在区域的桌面图像
+        screenshot = screen.grabWindow(0, pos.x(), pos.y(), self.width(), self.height())
+        self.bg_cache = screenshot.toImage().convertToFormat(QtGui.QImage.Format_ARGB32)
+
+        # 恢复不透明度与更新
         self.setWindowOpacity(old_opacity)
-        # 转换为 32 位 RGBA 格式（注意不同 Qt 版本支持的格式可能有所不同）
-        image = pixmap.toImage().convertToFormat(QImage.Format_RGBA8888)
+        self.setUpdatesEnabled(True)
 
-        # 上传图像到纹理（窗口尺寸较小，所以全图上传开销不大）
-        if self.desktop_texture is None:
-            self.desktop_texture = QOpenGLTexture(image)
-            self.desktop_texture.setMinificationFilter(QOpenGLTexture.Linear)
-            self.desktop_texture.setMagnificationFilter(QOpenGLTexture.Linear)
-            self.desktop_texture.setWrapMode(QOpenGLTexture.ClampToEdge)
-        else:
-            self.desktop_texture.bind()
-            self.desktop_texture.setData(image)
+        # 根据截屏生成透镜扭曲后的图像
+        self.createDistortedImage()
+        self.update()  # 通知重绘
 
-        self.update()  # 触发 repaint
+        self.updating = False
 
-    def paintGL(self):
-        self.glClear(self.GL_COLOR_BUFFER_BIT | self.GL_DEPTH_BUFFER_BIT)
-        self.shader_program.bind()
-        self.vao.bind()
+    def createDistortedImage(self):
+        """对缓存的背景图像进行透镜扭曲处理，结果保存到 self.distorted_cache"""
+        if self.bg_cache is None:
+            return
 
-        if self.desktop_texture:
-            self.desktop_texture.bind(0)
-            self.shader_program.setUniformValue("desktopTexture", 0)
-        # 设置放大倍数（可调）
-        self.shader_program.setUniformValue("magnification", 1.5)
+        qimage = self.bg_cache
+        w = qimage.width()
+        h = qimage.height()
 
-        # 绘制全屏四边形（采用三角带方式绘制 4 个顶点）
-        self.glDrawArrays(self.GL_TRIANGLE_STRIP, 0, 4)
+        # 将 QImage 转换为 numpy 数组
+        ptr = qimage.bits()
+        ptr.setsize(qimage.byteCount())
+        img_arr = np.array(ptr).reshape(h, w, 4).copy()
 
-        self.vao.release()
-        self.shader_program.release()
+        # 输出图像数组（浮点数便于计算）
+        out_arr = np.zeros_like(img_arr, dtype=np.float32)
 
-    def resizeGL(self, w, h):
-        self.glViewport(0, 0, w, h)
-        # 随窗口尺寸变化重新设置圆形遮罩
-        self.setMask(QtGui.QRegion(self.rect(), QtGui.QRegion.Ellipse))
+        # 透镜参数：以窗口中心为光轴，半径为窗口短边一半，中心放大1.5倍
+        center_x = w / 2.0
+        center_y = h / 2.0
+        radius = min(w, h) / 2.0
+        magnification = 1.5
 
-    # --- 实现鼠标拖动窗口 ---
+        # 构造二维坐标网格
+        x = np.arange(w)
+        y = np.arange(h)
+        X, Y = np.meshgrid(x, y)
+
+        dx = X - center_x
+        dy = Y - center_y
+        r = np.sqrt(dx**2 + dy**2)
+
+        # 非线性放大因子：中心处 f = magnification，边缘 f = 1
+        f = np.ones_like(r)
+        mask = r <= radius
+        f[mask] = (magnification - 1) * (1 - (r[mask] / radius) ** 2) + 1
+
+        # 反向映射：目标像素 (X, Y) 对应源图像坐标 (src_X, src_Y)
+        src_X = center_x + dx / f
+        src_Y = center_y + dy / f
+
+        # 双线性插值：先确定周围的整数像素
+        src_X0 = np.floor(src_X).astype(np.int32)
+        src_Y0 = np.floor(src_Y).astype(np.int32)
+        src_X1 = np.clip(src_X0 + 1, 0, w - 1)
+        src_Y1 = np.clip(src_Y0 + 1, 0, h - 1)
+        wx = src_X - src_X0
+        wy = src_Y - src_Y0
+
+        src_X0 = np.clip(src_X0, 0, w - 1)
+        src_Y0 = np.clip(src_Y0, 0, h - 1)
+
+        # 取出四个邻域像素值
+        I00 = img_arr[src_Y0, src_X0].astype(np.float32)
+        I10 = img_arr[src_Y0, src_X1].astype(np.float32)
+        I01 = img_arr[src_Y1, src_X0].astype(np.float32)
+        I11 = img_arr[src_Y1, src_X1].astype(np.float32)
+
+        # 计算双线性插值权重
+        w0 = (1 - wx) * (1 - wy)
+        w1 = wx * (1 - wy)
+        w2 = (1 - wx) * wy
+        w3 = wx * wy
+
+        out_arr = (I00 * w0[..., None] +
+                   I10 * w1[..., None] +
+                   I01 * w2[..., None] +
+                   I11 * w3[..., None])
+
+        # 对圆形区域外的像素设为全透明（alpha = 0）
+        out_arr[r > radius, 3] = 0
+
+        out_arr = np.clip(out_arr, 0, 255).astype(np.uint8)
+
+        # 构造 QImage（调用 .copy() 以确保数据独立）
+        self.distorted_cache = QtGui.QImage(out_arr.data, w, h, out_arr.strides[0],
+                                             QtGui.QImage.Format_ARGB32).copy()
+
+    def paintEvent(self, event):
+        """只绘制缓存的透镜图像"""
+        painter = QtGui.QPainter(self)
+        if self.distorted_cache:
+            painter.drawImage(0, 0, self.distorted_cache)
+        painter.end()
+
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
+            # 记录鼠标相对于窗口左上角的偏移量
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
 
     def mouseMoveEvent(self, event):
         if event.buttons() & QtCore.Qt.LeftButton:
+            # 拖动移动窗口，定时器会自动刷新背景
             self.move(event.globalPos() - self.drag_position)
             event.accept()
 
-
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    # 指定 OpenGL 上下文版本（3.3 核心）以保证着色器能正常工作
-    fmt = QSurfaceFormat()
-    fmt.setVersion(3, 3)
-    fmt.setProfile(QSurfaceFormat.CoreProfile)
-    QSurfaceFormat.setDefaultFormat(fmt)
-
-    window = GlassBeadWidget()
-    window.resize(300, 300)
-    window.show()
+    lens = LensWindow()
+    lens.show()
     sys.exit(app.exec_())
