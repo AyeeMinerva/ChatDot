@@ -195,13 +195,13 @@ class ChatWindow(QMainWindow):
 
     def load_saved_settings(self):
         settings = load_settings()
-        api_key = settings.get('api_key', '')
+        api_keys = settings.get('api_keys', [])
         api_base = settings.get('api_base', '')
         model_name = settings.get('model_name', '')
         
-        if api_key and api_base:
+        if api_keys and api_base:
             try:
-                self.llm_client.set_api_config(api_key=api_key, api_base=api_base)
+                self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
                 if model_name:
                     self.llm_client.set_model_name(model_name)
             except Exception as e:

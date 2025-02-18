@@ -56,12 +56,14 @@ class SettingWindow(QDialog):
         settings = load_settings()
         # 加载 API 相关设置
         api_base = settings.get('api_base', '')
-        api_key = settings.get('api_key', '')
+        api_keys = settings.get('api_keys', [])
         model_name = settings.get('model_name', '')
         model_list = settings.get('model_list', [])
         
+        # 设置 API Base URL
         self.llm_connection_settings_page.api_base_input.setText(api_base)
-        self.llm_connection_settings_page.api_key_input.setText(api_key)
+        # 设置 API Keys
+        self.llm_connection_settings_page.set_api_keys(api_keys)
         
         # 如果有保存的模型列表和选中模型，直接加载
         if model_list:
@@ -73,9 +75,9 @@ class SettingWindow(QDialog):
                 self.llm_client.set_model_name(model_name)
         
         # 如果有API配置，自动连接
-        if api_key and api_base:
+        if api_keys and api_base:
             try:
-                self.llm_client.set_api_config(api_key=api_key, api_base=api_base)
+                self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
                 self.llm_connection_settings_page.model_name_combo.setEnabled(True)
             except Exception as e:
                 print(f"自动连接API失败: {e}")
@@ -102,9 +104,9 @@ class SettingWindow(QDialog):
     def save_user_settings(self):
         settings = {
             'api_base': self.llm_connection_settings_page.api_base_input.text().strip(),
-            'api_key': self.llm_connection_settings_page.api_key_input.text().strip(),
+            'api_keys': self.llm_connection_settings_page.api_keys,
             'model_params': self.model_params_settings_page.get_model_params_settings(),
-            'model_name': self.llm_client.get_model_name(),  # 保存当前选中的模型名称
+            'model_name': self.llm_client.get_model_name(),
             'model_list': [self.llm_connection_settings_page.model_name_combo.itemText(i) 
                           for i in range(self.llm_connection_settings_page.model_name_combo.count())
                           if self.llm_connection_settings_page.model_name_combo.itemText(i) not in 
@@ -131,14 +133,14 @@ class SettingWindow(QDialog):
         # 不要使用 accept() 或 close()，让设置窗口保持打开状态
 
     def handle_api_connected(self, api_settings):
-        api_key = api_settings.get('api_key')
+        api_keys = api_settings.get('api_keys', [])
         api_base = api_settings.get('api_base')
 
         try:
-            self.llm_client.set_api_config(api_key=api_key, api_base=api_base)
-            # 移除成功提示
+            self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
             self.get_model_list()
             self.api_connected_signal.emit()
+            self.save_user_settings()
         except ValueError as e:
             QMessageBox.warning(self, "API 配置错误", str(e))
             self.handle_api_error(str(e))

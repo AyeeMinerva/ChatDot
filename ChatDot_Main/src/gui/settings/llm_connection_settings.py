@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QComboBox, QMessageBox
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, 
+                            QHBoxLayout, QComboBox, QMessageBox, QListWidget, QInputDialog)
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 class LLMConnectionSettingsPage(QWidget):
@@ -7,6 +8,7 @@ class LLMConnectionSettingsPage(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.api_keys = []  # 存储多个API Keys
         self.initUI()
 
     def initUI(self):
@@ -18,11 +20,24 @@ class LLMConnectionSettingsPage(QWidget):
         layout.addWidget(self.api_base_label)
         layout.addWidget(self.api_base_input)
 
-        # API Key
-        self.api_key_label = QLabel("API Key:", self)
-        self.api_key_input = QLineEdit(self)
-        layout.addWidget(self.api_key_label)
-        layout.addWidget(self.api_key_input)
+        # API Keys List
+        self.api_keys_label = QLabel("API Keys:", self)
+        layout.addWidget(self.api_keys_label)
+        
+        self.api_keys_list = QListWidget(self)
+        layout.addWidget(self.api_keys_list)
+
+        # API Keys 管理按钮
+        keys_buttons_layout = QHBoxLayout()
+        self.add_key_button = QPushButton("添加Key", self)
+        self.remove_key_button = QPushButton("删除Key", self)
+        
+        self.add_key_button.clicked.connect(self.add_api_key)
+        self.remove_key_button.clicked.connect(self.remove_api_key)
+        
+        keys_buttons_layout.addWidget(self.add_key_button)
+        keys_buttons_layout.addWidget(self.remove_key_button)
+        layout.addLayout(keys_buttons_layout)
 
         # 模型选择
         self.model_name_label = QLabel("模型:", self)
@@ -45,15 +60,15 @@ class LLMConnectionSettingsPage(QWidget):
         self.setLayout(layout)
 
     def connect_api(self):
-        api_key = self.api_key_input.text().strip()
         api_base = self.api_base_input.text().strip()
+        api_keys = self.api_keys # 使用存储的api_keys列表
 
-        if not api_key or not api_base:
-            QMessageBox.warning(self, "API 配置", "API Base URL 和 API Key 不能为空。")
+        if not api_keys or not api_base:
+            QMessageBox.warning(self, "API 配置", "API Base URL 和至少一个 API Key 不能为空。")
             return
 
         api_settings = {
-            'api_key': api_key,
+            'api_keys': api_keys,
             'api_base': api_base
         }
         print("连接请求，传递 API 设置：", api_settings)
@@ -76,8 +91,29 @@ class LLMConnectionSettingsPage(QWidget):
         print(f"模型下拉框选择改变，新模型名称: {model_name}")
         self.model_name_changed_signal.emit(model_name)
 
+    def add_api_key(self):
+        key, ok = QInputDialog.getText(self, "添加API Key", "请输入API Key:", QLineEdit.Normal)
+        if ok and key.strip():
+            self.api_keys.append(key.strip())
+            # 显示时只显示前8位
+            self.api_keys_list.addItem(f"{key[:8]}...")
+
+    def remove_api_key(self):
+        current_row = self.api_keys_list.currentRow()
+        if current_row >= 0:
+            self.api_keys_list.takeItem(current_row)
+            self.api_keys.pop(current_row)
+
     def get_llm_connection_settings(self):
         return {
             'api_base': self.api_base_input.text().strip(),
-            'api_key': self.api_key_input.text().strip()
+            'api_keys': self.api_keys
         }
+
+    def set_api_keys(self, keys):
+        """设置API Keys并更新显示"""
+        self.api_keys = []
+        self.api_keys_list.clear()
+        for key in keys:
+            self.api_keys.append(key)
+            self.api_keys_list.addItem(f"{key[:8]}...")
