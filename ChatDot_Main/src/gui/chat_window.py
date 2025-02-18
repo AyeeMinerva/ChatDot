@@ -1,12 +1,12 @@
 import os
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 import sys
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QTextEdit, QLineEdit, QWidget, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea, QDesktopWidget
+from PyQt5.QtCore import Qt, QPoint, QRect, QTimer
 from client.llm_client import LLMClient
 from client.llm_interaction import LLMChatThread
 from gui.components.message_bubble import MessageBubble
-from persistence.settings_persistence import load_settings  # 添加导入
+from persistence.settings_persistence import load_settings
 
 class ChatWindow(QMainWindow):
     def __init__(self):
@@ -18,24 +18,40 @@ class ChatWindow(QMainWindow):
         self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
         self.assistant_prefix_added = False
         self.init_ui()
-        self.enable_send_buttons()  # 初始化后立即启用按钮
-        self.load_saved_settings()  # 加载保存的设置
+        self.enable_send_buttons()
+        self.load_saved_settings()
 
     def init_ui(self):
+        # 窗口基础设置
+        self.screen = QDesktopWidget().availableGeometry()
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(300)
+        self.resize(500, 400)
+        self.max_auto_height = int(self.screen.height() * 0.8)
+
+        # 主体布局
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
+        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(10)
 
-        # 创建消息滚动区域
+        # 消息显示区域（滚动）
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # 自动显示滚动条
+
         self.scroll_content = QWidget(self.scroll_area)
         self.messages_layout = QVBoxLayout(self.scroll_content)
-        self.messages_layout.addStretch()
+        self.messages_layout.setContentsMargins(0, 0, 0, 0)
+        self.messages_layout.setSpacing(10)
+        self.messages_layout.addStretch()  # 消息置底的关键
+        self.scroll_content.setLayout(self.messages_layout)
         self.scroll_area.setWidget(self.scroll_content)
         self.layout.addWidget(self.scroll_area)
 
+        # 用户输入区域
         self.user_input_layout = QHBoxLayout()
         self.user_input = QLineEdit(self)
         self.user_input.setPlaceholderText("请输入消息...")
@@ -48,6 +64,7 @@ class ChatWindow(QMainWindow):
         self.user_input_layout.addWidget(self.send_button)
         self.layout.addLayout(self.user_input_layout)
 
+        # 操作按钮区域
         self.operation_layout = QHBoxLayout()
         self.stop_button = QPushButton("停止", self)
         self.stop_button.clicked.connect(self.stop_llm)
@@ -57,6 +74,9 @@ class ChatWindow(QMainWindow):
         self.clear_button.clicked.connect(self.clear_context)
         self.operation_layout.addWidget(self.clear_button)
         self.layout.addLayout(self.operation_layout)
+
+        # 初始滚动到底部
+        QTimer.singleShot(0, self.scroll_to_bottom)
 
     def enable_send_buttons(self):
         self.send_button.setEnabled(True)
@@ -68,25 +88,25 @@ class ChatWindow(QMainWindow):
             user_message = self.user_input.text().strip()
             if not user_message:
                 return
+
             self.add_message_bubble(user_message, "user")
             self.messages.append({"role": "user", "content": user_message})
             self.user_input.clear()
 
-        # 改为无提示直接返回
         if not self.llm_client.client:
+            QMessageBox.warning(self, "API 未配置", "请先在设置中配置 API 连接。")
             return
 
-        # 发送时禁用发送按钮，但启用停止按钮
         self.send_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.clear_button.setEnabled(True)
-        
+
         model_params_override = {}
         selected_model_name = self.llm_client.get_model_name()
         if not selected_model_name:
             selected_model_name = "gpt-3.5-turbo"
             QMessageBox.warning(self, "模型未选择", "请在设置中选择 LLM 模型，当前使用默认模型 gpt-3.5-turbo。")
-        
+
         print(f"\n--- Debug - Selected Model Name from llm_client: {selected_model_name} ---")
         self.assistant_prefix_added = False
         self.llm_thread = LLMChatThread(self.llm_client, self.messages, model_params_override, selected_model_name)
@@ -109,17 +129,19 @@ class ChatWindow(QMainWindow):
                 new_text = current_text + chunk
                 bubble.content_edit.setText(new_text)
                 self.messages[-1]["content"] = new_text
+        # 始终滚动到底部
+        self.scroll_to_bottom()
 
     def complete_output(self):
-        # 不再使用 chat_display
         self.enable_send_buttons()
+        # 输出完成后再次调整窗口大小
+        self.adjustWindowSize()
 
     def stop_llm(self):
         if self.llm_thread and self.llm_thread.isRunning():
             self.llm_thread.stop()
             self.llm_thread.wait()
-            self.chat_display.append("\n[LLM 输出已停止]\n")
-            self.enable_send_buttons()  # 停止后启用所有按钮
+            self.enable_send_buttons()
 
     def clear_context(self):
         self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
@@ -129,28 +151,27 @@ class ChatWindow(QMainWindow):
             if item.widget():
                 item.widget().deleteLater()
         self.enable_send_buttons()
+        # 清除后调整窗口大小
+        self.adjustWindowSize()
 
     def add_message_bubble(self, message, role):
-        # 索引应该就是消息在 messages 列表中的实际位置
         index = len(self.messages) - 1
         bubble = MessageBubble(message, index, role)
         bubble.delete_requested.connect(self.delete_message)
         bubble.edit_completed.connect(self.edit_message)
         bubble.retry_requested.connect(self.retry_message)
+        # 在 stretch 前插入消息气泡
         self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
-        
+        # 消息气泡添加后调整窗口大小
+        self.adjustWindowSize()
         # 滚动到底部
-        self.scroll_area.verticalScrollBar().setValue(
-            self.scroll_area.verticalScrollBar().maximum()
-        )
+        self.scroll_to_bottom()
 
     def delete_message(self, index):
         if 0 <= index < len(self.messages):
-            # 从消息列表中删除
             self.messages.pop(index)
-            
-            # 从布局中找到对应索引的组件并删除
-            for i in range(self.messages_layout.count() - 1):  # -1 排除最后的 stretch
+            # 移除布局中的组件
+            for i in range(self.messages_layout.count()):
                 item = self.messages_layout.itemAt(i)
                 if item and isinstance(item.widget(), MessageBubble):
                     bubble = item.widget()
@@ -158,39 +179,37 @@ class ChatWindow(QMainWindow):
                         self.messages_layout.removeItem(item)
                         bubble.deleteLater()
                         break
-            
             # 更新剩余消息气泡的索引
-            for i in range(self.messages_layout.count() - 1):
+            for i in range(self.messages_layout.count()):
                 item = self.messages_layout.itemAt(i)
                 if item and isinstance(item.widget(), MessageBubble):
                     bubble = item.widget()
                     if bubble.index > index:
                         bubble.index -= 1
+            # 删除消息后调整窗口大小
+            self.adjustWindowSize()
 
     def edit_message(self, index, new_text):
         if 0 <= index < len(self.messages):
             self.messages[index]["content"] = new_text
+        # 编辑消息后调整窗口大小
+        self.adjustWindowSize()
 
     def retry_message(self, index):
-        if index == len(self.messages) - 1:  # 只允许重试最后一条消息
-            # 保存当前回复作为候选
+        if index == len(self.messages) - 1:
             current_response = self.messages[index]["content"]
             last_bubble = self.messages_layout.itemAt(index).widget()
             if last_bubble:
                 last_bubble.add_alternative(current_response)
-            
-            # 获取到该条消息为止的所有历史记录
+
             retry_messages = self.messages[:index]
             self.messages = retry_messages
-            # 发起新的请求
             self.send_message(retry=True)
         else:
             print("只能重试最后一条消息")
 
     def handle_error_response(self, error_message):
-        # 将错误消息添加到消息列表，确保索引正确
         self.messages.append({"role": "error", "content": f"[系统错误]: {error_message}"})
-        # 添加错误消息气泡，传入正确的索引
         self.add_message_bubble(f"[系统错误]: {error_message}", "error")
 
     def load_saved_settings(self):
@@ -198,7 +217,7 @@ class ChatWindow(QMainWindow):
         api_keys = settings.get('api_keys', [])
         api_base = settings.get('api_base', '')
         model_name = settings.get('model_name', '')
-        
+
         if api_keys and api_base:
             try:
                 self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
@@ -206,3 +225,64 @@ class ChatWindow(QMainWindow):
                     self.llm_client.set_model_name(model_name)
             except Exception as e:
                 print(f"加载API配置失败: {e}")
+
+    def scroll_to_bottom(self):
+        """滚动到底部"""
+        self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
+
+    def adjustWindowSize(self):
+        """调整窗口大小，确保内容完整显示且不超出屏幕"""
+        content_height = 0
+        for i in range(self.messages_layout.count()):
+            item = self.messages_layout.itemAt(i)
+            if item and item.widget():
+                content_height += item.widget().height() + self.messages_layout.spacing()
+
+        total_height = (content_height +
+                        self.user_input.height() +
+                        self.stop_button.height() +
+                        self.layout.spacing() * 3 +
+                        self.layout.contentsMargins().top() +
+                        self.layout.contentsMargins().bottom() +
+                        50)  # 额外空间
+
+        total_height = min(total_height, self.max_auto_height)
+
+        # 获取当前窗口位置和大小
+        current_pos = self.pos()
+        current_height = self.height()
+
+        # 计算新的窗口位置
+        new_y = current_pos.y() - (total_height - current_height)
+        if new_y < self.screen.top():
+            new_y = self.screen.top()
+
+        # 调整窗口大小和位置
+        self.setGeometry(QRect(current_pos.x(), new_y, self.width(), total_height))
+
+    def toggleChatWindow(self):
+        """显示/隐藏聊天窗口"""
+        if self.isVisible():
+            self.hide()
+        else:
+            # 获取悬浮球位置
+            ball_pos = self.parent().mapToGlobal(QPoint(0, 0))
+
+            # 计算初始位置（在悬浮球左侧）
+            chat_window_x = ball_pos.x() - self.width() - 20
+            chat_window_y = ball_pos.y() - self.height() - 40
+
+            # 确保窗口不会超出屏幕边界
+            chat_window_x = max(chat_window_x, self.screen.left())
+            chat_window_x = min(chat_window_x, self.screen.right() - self.width())
+            chat_window_y = max(chat_window_y, self.screen.top())
+            chat_window_y = min(chat_window_y, self.screen.bottom() - self.height())
+
+            self.move(chat_window_x, chat_window_y)
+            self.show()
+            self.activateWindow()
+
+    def showEvent(self, event):
+        """窗口显示时滚动到底部"""
+        super().showEvent(event)
+        QTimer.singleShot(0, self.scroll_to_bottom)
