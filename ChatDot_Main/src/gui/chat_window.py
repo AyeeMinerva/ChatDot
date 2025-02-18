@@ -258,7 +258,8 @@ class ChatWindow(QMainWindow):
             new_y = self.screen.top()
 
         # 调整窗口大小和位置
-        self.setGeometry(QRect(current_pos.x(), new_y, self.width(), total_height))
+        if new_y > 10:
+            self.setGeometry(QRect(current_pos.x(), new_y, self.width(), total_height))
 
     def toggleChatWindow(self):
         """显示/隐藏聊天窗口"""
