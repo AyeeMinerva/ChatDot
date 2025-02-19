@@ -4,13 +4,14 @@ from PyQt5.QtGui import QPainter, QColor, QBrush, QRadialGradient
 from PyQt5.QtCore import Qt, QPoint, QRectF
 
 from gui.setting_window import SettingWindow
+from gui.chat_window import ChatWindow
 
 class FloatingBall(QWidget):
     DRAG_THRESHOLD = 10
 
-    def __init__(self, chat_window):
+    def __init__(self):
         super().__init__()
-        self.chat_window = chat_window  # 保存 ChatWindow 实例
+        self.chat_window = ChatWindow(self)  # 保存 ChatWindow 实例
         self.initUI()
         self.drag_start_position = None
         self.dragging = False
@@ -146,12 +147,14 @@ class FloatingBall(QWidget):
         setting_dialog.show()
 
     def toggleChatWindow(self):
+        
         if self.chat_window.isVisible():
             self.chat_window.hide()
         else:
-            ball_pos = self.mapToGlobal(QPoint(0, 0))
-            chat_window_x = ball_pos.x() - 350
-            chat_window_y = ball_pos.y() - self.chat_window.height() - 40
-            self.chat_window.move(chat_window_x, chat_window_y)
-            self.chat_window.show()
-            self.chat_window.activateWindow()
+            self.chat_window.toggleChatWindow()
+            # ball_pos = self.mapToGlobal(QPoint(0, 0))
+            # chat_window_x = ball_pos.x() - 350
+            # chat_window_y = ball_pos.y() - self.chat_window.height() - 40
+            # self.chat_window.move(chat_window_x, chat_window_y)
+            # self.chat_window.show()
+            # self.chat_window.activateWindow()

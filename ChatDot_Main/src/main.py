@@ -5,7 +5,7 @@ from gui.floating_ball import FloatingBall
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    chat_window = ChatWindow()
-    floating_ball = FloatingBall(chat_window)
+    #chat_window = ChatWindow()
+    floating_ball = FloatingBall()
     floating_ball.show()
     sys.exit(app.exec_())

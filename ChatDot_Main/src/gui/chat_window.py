@@ -1,16 +1,17 @@
 import os
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 import sys
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea, QDesktopWidget
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea, QDesktopWidget, QApplication, QApplication
 from PyQt5.QtCore import Qt, QPoint, QRect, QTimer
 from client.llm_client import LLMClient
 from client.llm_interaction import LLMChatThread
 from gui.components.message_bubble import MessageBubble
 from persistence.settings_persistence import load_settings
+from PyQt5.QtGui import QCursor
 
 class ChatWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setWindowTitle("简洁 LLM 聊天窗口 (重构版)")
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.llm_client = LLMClient()
@@ -269,15 +270,37 @@ class ChatWindow(QMainWindow):
             # 获取悬浮球位置
             ball_pos = self.parent().mapToGlobal(QPoint(0, 0))
 
-            # 计算初始位置（在悬浮球左侧）
-            chat_window_x = ball_pos.x() - self.width() - 20
-            chat_window_y = ball_pos.y() - self.height() - 40
+            #获取屏幕
+            desktop = QApplication.desktop()
+            screen_number = desktop.screenNumber(ball_pos)
+            screen = desktop.screenGeometry(screen_number)
+            
+            # 计算初始位置（在悬浮球右下方）
+            chat_window_x = ball_pos.x() + self.parent().width() + 10
+            chat_window_y = ball_pos.y() + self.parent().height()
+
+            #窗口超出屏幕边界时，调整位置到屏幕边缘
+            if chat_window_x + self.width() > screen.right() and chat_window_y + self.height() > screen.bottom():
+                chat_window_x = self.parent().x() - self.parent().width() - self.width()
+                chat_window_y = screen.bottom() - self.height()
+
+            if chat_window_x < screen.left():
+                chat_window_x = screen.left()
+            elif chat_window_x + self.width() > screen.right():
+                chat_window_x = screen.right() - self.width()
+            
+            if chat_window_y < screen.top():
+                chat_window_y = screen.top()
+
+            elif chat_window_y + self.height() > screen.bottom():
+                chat_window_y = screen.bottom() - self.height()
+
 
             # 确保窗口不会超出屏幕边界
-            chat_window_x = max(chat_window_x, self.screen.left())
-            chat_window_x = min(chat_window_x, self.screen.right() - self.width())
-            chat_window_y = max(chat_window_y, self.screen.top())
-            chat_window_y = min(chat_window_y, self.screen.bottom() - self.height())
+            # chat_window_x = max(chat_window_x, self.screen.left())
+            # chat_window_x = min(chat_window_x, self.screen.right() - self.width())
+            # chat_window_y = max(chat_window_y, self.screen.top())
+            # chat_window_y = min(chat_window_y, self.screen.bottom() - self.height())
 
             self.move(chat_window_x, chat_window_y)
             self.show()
