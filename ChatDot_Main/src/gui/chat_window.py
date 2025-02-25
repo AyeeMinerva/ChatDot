@@ -12,7 +12,7 @@ from PyQt5.QtGui import QCursor
 class ChatWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("简洁 LLM 聊天窗口 (重构版)")
+        self.setWindowTitle("My Chat Window")
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.llm_client = LLMClient()
         self.llm_thread = None
@@ -25,10 +25,11 @@ class ChatWindow(QMainWindow):
     def init_ui(self):
         # 窗口基础设置
         self.screen = QDesktopWidget().availableGeometry()
-        self.setMinimumWidth(400)
-        self.setMinimumHeight(300)
+        #最小宽度和高度
+        # self.setMinimumWidth(400)
+        # self.setMinimumHeight(300)
         self.resize(500, 400)
-        self.max_auto_height = int(self.screen.height() * 0.8)
+        #self.max_auto_height = int(self.screen.height() * 0.8)
 
         # 主体布局
         self.central_widget = QWidget(self)
@@ -136,7 +137,7 @@ class ChatWindow(QMainWindow):
     def complete_output(self):
         self.enable_send_buttons()
         # 输出完成后再次调整窗口大小
-        self.adjustWindowSize()
+        #self.adjustWindowSize()
 
     def stop_llm(self):
         if self.llm_thread and self.llm_thread.isRunning():
@@ -153,7 +154,7 @@ class ChatWindow(QMainWindow):
                 item.widget().deleteLater()
         self.enable_send_buttons()
         # 清除后调整窗口大小
-        self.adjustWindowSize()
+        #self.adjustWindowSize()
 
     def add_message_bubble(self, message, role):
         index = len(self.messages) - 1
@@ -164,7 +165,7 @@ class ChatWindow(QMainWindow):
         # 在 stretch 前插入消息气泡
         self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
         # 消息气泡添加后调整窗口大小
-        self.adjustWindowSize()
+        #self.adjustWindowSize()
         # 滚动到底部
         self.scroll_to_bottom()
 
@@ -188,13 +189,13 @@ class ChatWindow(QMainWindow):
                     if bubble.index > index:
                         bubble.index -= 1
             # 删除消息后调整窗口大小
-            self.adjustWindowSize()
+            #self.adjustWindowSize()
 
     def edit_message(self, index, new_text):
         if 0 <= index < len(self.messages):
             self.messages[index]["content"] = new_text
         # 编辑消息后调整窗口大小
-        self.adjustWindowSize()
+        #self.adjustWindowSize()
 
     def retry_message(self, index):
         if index == len(self.messages) - 1:
@@ -231,36 +232,36 @@ class ChatWindow(QMainWindow):
         """滚动到底部"""
         self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
 
-    def adjustWindowSize(self):
-        """调整窗口大小，确保内容完整显示且不超出屏幕"""
-        content_height = 0
-        for i in range(self.messages_layout.count()):
-            item = self.messages_layout.itemAt(i)
-            if item and item.widget():
-                content_height += item.widget().height() + self.messages_layout.spacing()
+    #此函数已被移除,因为性能过差且不是必要的
+    # def adjustWindowSize(self):
+    #     """调整窗口大小，确保内容完整显示且不超出屏幕"""
+    #     #print("正在调整窗口大小")
+    #     content_height = 0
+    #     for i in range(self.messages_layout.count()):
+    #         item = self.messages_layout.itemAt(i)
+    #         if item and item.widget():
+    #             content_height += item.widget().height() + self.messages_layout.spacing()
 
-        total_height = (content_height +
-                        self.user_input.height() +
-                        self.stop_button.height() +
-                        self.layout.spacing() * 3 +
-                        self.layout.contentsMargins().top() +
-                        self.layout.contentsMargins().bottom() +
-                        50)  # 额外空间
+    #     total_height = (content_height +
+    #                     self.user_input.height() +
+    #                     self.stop_button.height() +
+    #                     self.layout.spacing() * 3 +
+    #                     self.layout.contentsMargins().top() +
+    #                     self.layout.contentsMargins().bottom() +
+    #                     50)  # 额外空间
 
-        total_height = min(total_height, self.max_auto_height)
+    #     total_height = min(total_height, self.max_auto_height)
 
-        # 获取当前窗口位置和大小
-        current_pos = self.pos()
-        current_height = self.height()
+    #     # 获取当前窗口位置和大小
+    #     current_pos = self.pos()
+    #     current_height = self.height()
 
-        # 计算新的窗口位置
-        new_y = current_pos.y() - (total_height - current_height)
-        if new_y < self.screen.top():
-            new_y = self.screen.top()
+    #     # 计算新的窗口位置
+    #     new_y = current_pos.y() - (total_height - current_height)
+    #     if new_y < self.screen.top():
+    #         new_y = self.screen.top()
 
-        # 调整窗口大小和位置
-        if new_y > 10:
-            self.setGeometry(QRect(current_pos.x(), new_y, self.width(), total_height))
+    #    self.setGeometry(QRect(current_pos.x(), new_y, self.width(), total_height))
 
     def toggleChatWindow(self):
         """显示/隐藏聊天窗口"""

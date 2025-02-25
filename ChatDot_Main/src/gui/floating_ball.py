@@ -11,10 +11,20 @@ class FloatingBall(QWidget):
 
     def __init__(self):
         super().__init__()
+        # 添加默认值常量
+        self.DEFAULT_COLOR = QColor(180, 200, 220)  # 蓝色基调
+        self.DEFAULT_SIZE = 60
+        self.DEFAULT_OPACITY = 0.99
+        
+        self.ball_color = self.DEFAULT_COLOR
         self.chat_window = ChatWindow(self)  # 保存 ChatWindow 实例
         self.initUI()
         self.drag_start_position = None
         self.dragging = False
+
+    def setColor(self, color):
+        self.ball_color = color
+        self.update()  # 重绘悬浮球
 
     def initUI(self):
         self.setWindowTitle('透明玻璃珠悬浮球')
@@ -84,18 +94,74 @@ class FloatingBall(QWidget):
     def paint_glass_effect(self):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        glass_gradient = QRadialGradient(self.rect().center(), self.rect().width() / 2)
-        glass_gradient.setColorAt(0, QColor(240, 245, 250, 200))
-        glass_gradient.setColorAt(0.7, QColor(180, 200, 220, 150))
-        glass_gradient.setColorAt(1, QColor(100, 120, 140, 100))
+        
+        width = self.width()
+        center = self.rect().center()
+        
+        # 主渐变
+        glass_gradient = QRadialGradient(center, width / 2)
+        base_color = self.ball_color
+        
+        # 更新渐变颜色定义
+        glass_gradient.setColorAt(0, QColor(
+            min(base_color.red() + 70, 255),
+            min(base_color.green() + 70, 255),
+            min(base_color.blue() + 70, 255),
+            200
+        ))
+        glass_gradient.setColorAt(0.7, QColor(
+            base_color.red(),
+            base_color.green(),
+            base_color.blue(),
+            180
+        ))
+        glass_gradient.setColorAt(1, QColor(
+            max(base_color.red() - 50, 0),
+            max(base_color.green() - 50, 0),
+            max(base_color.blue() - 50, 0),
+            150
+        ))
+        
+        # 绘制主体
         painter.setBrush(QBrush(glass_gradient))
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(self.rect())
-        highlight_gradient = QRadialGradient(self.rect().topLeft() + QPoint(20, 20), 15)
-        highlight_gradient.setColorAt(0, QColor(255, 255, 255, 220))
-        highlight_gradient.setColorAt(1, QColor(255, 255, 255, 0))
+
+        # 高光渐变
+        highlight_size = width * 0.25
+        highlight_pos = QPoint(int(width * 0.33), int(width * 0.33))
+        highlight_gradient = QRadialGradient(highlight_pos, highlight_size)
+        
+        # 高光颜色使用更亮的主色调
+        highlight_color = QColor(
+            min(base_color.red() + 120, 255),
+            min(base_color.green() + 120, 255),
+            min(base_color.blue() + 120, 255),
+            150
+        )
+        
+        highlight_gradient.setColorAt(0, highlight_color)
+        highlight_gradient.setColorAt(0.5, QColor(
+            min(base_color.red() + 70, 255),
+            min(base_color.green() + 70, 255),
+            min(base_color.blue() + 70, 255),
+            50
+        ))
+        highlight_gradient.setColorAt(1, QColor(
+            base_color.red(),
+            base_color.green(),
+            base_color.blue(),
+            0
+        ))
+        
         painter.setBrush(QBrush(highlight_gradient))
-        painter.drawEllipse(QRectF(10, 10, 30, 30))
+        highlight_rect = QRectF(
+            width * 0.17,
+            width * 0.17,
+            width * 0.5,
+            width * 0.5
+        )
+        painter.drawEllipse(highlight_rect)
 
     def paintEvent(self, event):
         self.paint_glass_effect()
@@ -158,3 +224,12 @@ class FloatingBall(QWidget):
             # self.chat_window.move(chat_window_x, chat_window_y)
             # self.chat_window.show()
             # self.chat_window.activateWindow()
+
+    def resetToDefaults(self):
+        """恢复默认设置"""
+        self.setFixedSize(self.DEFAULT_SIZE, self.DEFAULT_SIZE)
+        self.setColor(self.DEFAULT_COLOR)
+        self.setWindowOpacity(self.DEFAULT_OPACITY)
+        # 通知设置页面更新显示
+        if hasattr(self, 'setting_dialog'):
+            self.setting_dialog.floating_ball_settings_page.updateSettingsDisplay()
