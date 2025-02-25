@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, 
-                            QHBoxLayout, QComboBox, QMessageBox, QListWidget, QInputDialog)
-from PyQt5.QtCore import pyqtSignal, pyqtSlot
+                            QHBoxLayout, QComboBox, QMessageBox, QListWidget, QInputDialog,
+                            QProgressDialog)
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt
 
 class LLMConnectionSettingsPage(QWidget):
     api_connected = pyqtSignal(dict)
@@ -52,27 +53,47 @@ class LLMConnectionSettingsPage(QWidget):
 
         # 连接按钮
         connection_layout = QHBoxLayout()
-        self.connect_button = QPushButton("连接", self)
-        self.connect_button.clicked.connect(self.connect_api)
+        self.connect_button = QPushButton("测试API连接", self)
+        self.connect_button.clicked.connect(self.test_api_connection)
         connection_layout.addWidget(self.connect_button)
         layout.addLayout(connection_layout)
 
         self.setLayout(layout)
 
-    def connect_api(self):
+    def test_api_connection(self):
+        """测试API连接功能"""
         api_base = self.api_base_input.text().strip()
-        api_keys = self.api_keys # 使用存储的api_keys列表
+        api_keys = self.api_keys
 
         if not api_keys or not api_base:
             QMessageBox.warning(self, "API 配置", "API Base URL 和至少一个 API Key 不能为空。")
             return
 
-        api_settings = {
-            'api_keys': api_keys,
-            'api_base': api_base
-        }
-        print("连接请求，传递 API 设置：", api_settings)
-        self.api_connected.emit(api_settings)
+        # 创建进度对话框
+        progress = QProgressDialog("正在测试API连接...", "取消", 0, 1, self)
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setWindowTitle("API连接测试")
+        progress.setAutoClose(True)
+        progress.show()
+
+        try:
+            # 发出连接信号，进行API测试
+            self.api_connected.emit({
+                'api_keys': api_keys,
+                'api_base': api_base
+            })
+            
+            # 清空并禁用模型下拉框，等待更新
+            self.model_name_combo.clear()
+            self.model_name_combo.addItem("正在获取模型列表...")
+            self.model_name_combo.setEnabled(False)
+            
+            QMessageBox.information(self, "测试成功", "API连接测试成功!")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "测试失败", f"API连接测试失败：{str(e)}")
+        finally:
+            progress.close()
 
     @pyqtSlot(int)
     def on_model_name_changed(self, index):

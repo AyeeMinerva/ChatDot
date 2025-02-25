@@ -3,6 +3,36 @@ from collections import deque
 from threading import Lock
 
 class LLMClient:
+    """
+    LLMClient 是一个管理与大型语言模型(LLM) API连接和通信的类。
+    该类提供以下功能：
+    - 通过轮询方式处理多个API密钥
+    - 配置和测试API连接
+    - 设置和管理模型参数
+    - 处理与LLM的流式和非流式通信
+    - 从API获取可用模型列表
+    
+    属性：
+        client: OpenAI客户端实例
+        api_keys (deque): 用于轮询的API密钥集合
+        api_base (str): API的基础URL
+        model_name (str): 要使用的LLM模型名称
+        model_params (dict): 模型配置参数
+        lock (Lock): 用于API密钥轮询的线程安全锁
+    
+    示例：
+        ```
+        client = LLMClient()
+        client.set_api_config(['key1', 'key2'], 'https://api.base.url')
+        client.set_model_name('gpt-3.5-turbo')
+        response = client.communicate([{"role": "user", "content": "Hello"}])
+        ```
+    
+    异常：
+        ValueError: 当提供无效参数时
+        RuntimeError: 当API连接失败或使用未初始化的客户端时
+    """
+    
     def __init__(self):
         self.client = None
         self.api_keys = deque()  # 使用双端队列存储多个API Keys
@@ -11,39 +41,47 @@ class LLMClient:
         self.model_params = {}
         self.lock = Lock()  # 用于线程安全的API Key轮询
 
-    def set_api_config(self, api_keys, api_base):
-        if not api_keys or not api_base:
-            raise ValueError("API Keys 和 API Base URL 不能为空。")
-        if not isinstance(api_keys, list):
-            raise ValueError("API Keys 必须是列表类型。")
+    def set_api_config(self, api_keys, api_base, test_connection=True):
+            """
+            设置API配置
+            @param api_keys: API密钥列表
+            @param api_base: API基础URL
+            @param test_connection: 是否测试连接，默认为True
+            """
+            if not api_keys or not api_base:
+                raise ValueError("API Keys 和 API Base URL 不能为空。")
+            if not isinstance(api_keys, list):
+                raise ValueError("API Keys 必须是列表类型。")
+            
+            self.api_keys = deque(api_keys)
+            self.api_base = api_base
+            
+            if test_connection:
+                # 测试所有API Keys
+                valid_keys = []
+                for key in api_keys:
+                    try:
+                        test_client = openai.OpenAI(
+                            api_key=key,
+                            base_url=api_base
+                        )
+                        test_client.models.list()
+                        valid_keys.append(key)
+                    except Exception as e:
+                        print(f"API Key {key[:8]}... 测试失败: {e}")
+                
+                if not valid_keys:
+                    self.client = None
+                    raise RuntimeError("没有有效的API Keys")
+                
+                self.api_keys = deque(valid_keys)
+            
+            # 不管是否测试，都设置第一个key为当前client
+            self.client = openai.OpenAI(
+                api_key=self.api_keys[0],
+                base_url=api_base
+            )
         
-        self.api_keys = deque(api_keys)
-        self.api_base = api_base
-        
-        # 测试所有API Keys
-        valid_keys = []
-        for key in api_keys:
-            try:
-                test_client = openai.OpenAI(
-                    api_key=key,
-                    base_url=api_base
-                )
-                test_client.models.list()
-                valid_keys.append(key)
-            except Exception as e:
-                print(f"API Key {key[:8]}... 测试失败: {e}")
-        
-        if not valid_keys:
-            self.client = None
-            raise RuntimeError("没有有效的API Keys")
-        
-        self.api_keys = deque(valid_keys)
-        self.client = openai.OpenAI(
-            api_key=self.api_keys[0],
-            base_url=api_base
-        )
-        print(f"成功配置 {len(valid_keys)} 个有效的API Keys")
-
     def get_next_api_key(self):
         with self.lock:
             current_key = self.api_keys[0]

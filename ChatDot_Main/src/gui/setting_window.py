@@ -74,13 +74,13 @@ class SettingWindow(QDialog):
                 self.llm_connection_settings_page.model_name_combo.setCurrentIndex(index)
                 self.llm_client.set_model_name(model_name)
         
-        # 如果有API配置，自动连接
+        # 如果有API配置，设置API配置
         if api_keys and api_base:
             try:
-                self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
+                self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base, test_connection=False)
                 self.llm_connection_settings_page.model_name_combo.setEnabled(True)
             except Exception as e:
-                print(f"自动连接API失败: {e}")
+                print(f"设置API配置失败: {e}")
         
         # 加载模型参数设置
         model_params = settings.get('model_params', {})
@@ -133,21 +133,27 @@ class SettingWindow(QDialog):
         # 不要使用 accept() 或 close()，让设置窗口保持打开状态
 
     def handle_api_connected(self, api_settings):
-        api_keys = api_settings.get('api_keys', [])
-        api_base = api_settings.get('api_base')
-
+        """处理API连接测试"""
         try:
-            self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
+            # 使用test_connection=True进行API测试
+            self.llm_client.set_api_config(
+                api_keys=api_settings['api_keys'],
+                api_base=api_settings['api_base'],
+                test_connection=True
+            )
+            
+            # 如果测试成功，获取模型列表
             self.get_model_list()
-            self.api_connected_signal.emit()
+            
+            # 保存成功的配置
             self.save_user_settings()
-        except ValueError as e:
-            QMessageBox.warning(self, "API 配置错误", str(e))
-            self.handle_api_error(str(e))
-        except RuntimeError as e:
-            QMessageBox.critical(self, "API 连接失败", f"连接失败，请检查API配置和网络。\n错误信息: {e}")
-            self.handle_api_error(str(e))
-
+            
+        except Exception as e:
+            QMessageBox.critical(self, "API 连接失败", str(e))
+            self.llm_connection_settings_page.model_name_combo.clear()
+            self.llm_connection_settings_page.model_name_combo.addItem("请先连接API")
+            self.llm_connection_settings_page.model_name_combo.setEnabled(False)
+            
     def get_model_list(self):
         self.llm_connection_settings_page.model_name_combo.clear()
         self.llm_connection_settings_page.model_name_combo.addItem("正在获取模型列表...")
