@@ -14,7 +14,6 @@ class ChatHistory:
 
     def save_history(self, history):
         try:
-            # Filter out system messages
             filtered_history = [msg for msg in history if msg["role"] != "system"]
             
             with open(self.filepath, 'w', encoding='utf-8') as f:
@@ -39,6 +38,8 @@ class ChatHistory:
                 if msg["role"] not in ["system", "user", "assistant"]:
                     return None
                     
+            self.filepath = file_to_load
+            
             return history
         except Exception as e:
             print(f"Error loading chat history: {e}")
