@@ -4,6 +4,7 @@ SECRETS/
 *.key
 .secrets
 user_settings.json
+history/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

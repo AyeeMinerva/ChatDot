@@ -7,6 +7,7 @@ from client.llm_client import LLMClient
 from client.llm_interaction import LLMChatThread
 from gui.components.message_bubble import MessageBubble
 from persistence.settings_persistence import load_settings
+from persistence.chat_history_persistence import ChatHistory
 from PyQt5.QtGui import QCursor
 
 class ChatWindow(QMainWindow):
@@ -21,6 +22,8 @@ class ChatWindow(QMainWindow):
         self.init_ui()
         self.enable_send_buttons()
         self.load_saved_settings()
+        self.chat_history = ChatHistory()
+        self.setAcceptDrops(True)  # 启用拖放功能
 
     def init_ui(self):
         # 窗口基础设置
@@ -135,6 +138,8 @@ class ChatWindow(QMainWindow):
         self.scroll_to_bottom()
 
     def complete_output(self):
+        # 保存历史记录
+        self.chat_history.save_history(self.messages)
         self.enable_send_buttons()
         # 输出完成后再次调整窗口大小
         #self.adjustWindowSize()
@@ -188,14 +193,15 @@ class ChatWindow(QMainWindow):
                     bubble = item.widget()
                     if bubble.index > index:
                         bubble.index -= 1
-            # 删除消息后调整窗口大小
-            #self.adjustWindowSize()
+            
+            # 保存更新后的消息历史到文件
+            self.chat_history.save_history(self.messages)
 
     def edit_message(self, index, new_text):
         if 0 <= index < len(self.messages):
             self.messages[index]["content"] = new_text
-        # 编辑消息后调整窗口大小
-        #self.adjustWindowSize()
+            # 保存更新后的消息历史到文件
+            self.chat_history.save_history(self.messages)
 
     def retry_message(self, index):
         if index == len(self.messages) - 1:
@@ -311,3 +317,37 @@ class ChatWindow(QMainWindow):
         """窗口显示时滚动到底部"""
         super().showEvent(event)
         QTimer.singleShot(0, self.scroll_to_bottom)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        files = [u.toLocalFile() for u in event.mimeData().urls()]
+        for file_path in files:
+            if file_path.lower().endswith('.json'):
+                try:
+                    history = self.chat_history.load_history(file_path)
+                    if history:
+                        self.load_chat_history(history)
+                    else:
+                        QMessageBox.warning(self, "无效文件", "此JSON文件不是有效的聊天历史记录。")
+                except Exception as e:
+                    QMessageBox.warning(self, "错误", f"加载文件时发生错误：{str(e)}")
+            else:
+                QMessageBox.warning(self, "不支持的文件类型", "只支持JSON格式的聊天历史记录文件。")
+
+    def load_chat_history(self, history):
+        # 清空当前上下文
+        self.clear_context()
+        
+        # 加载历史记录
+        self.messages = history
+        # 显示所有消息
+        for msg in history:
+            if msg["role"] not in ["system"]:  # 跳过system消息
+                self.add_message_bubble(msg["content"], msg["role"])
+        
+        self.scroll_to_bottom()
