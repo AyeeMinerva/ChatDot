@@ -53,15 +53,18 @@ class LLMConnectionSettingsPage(QWidget):
 
         # 连接按钮
         connection_layout = QHBoxLayout()
-        self.connect_button = QPushButton("测试API连接", self)
+        self.connect_button = QPushButton("获取模型列表", self)
+        self.manual_button = QPushButton("手动输入模型", self)
         self.connect_button.clicked.connect(self.test_api_connection)
+        self.manual_button.clicked.connect(self.manual_input_model)
         connection_layout.addWidget(self.connect_button)
+        connection_layout.addWidget(self.manual_button)
         layout.addLayout(connection_layout)
 
         self.setLayout(layout)
 
     def test_api_connection(self):
-        """测试API连接功能"""
+        """获取可用的模型列表"""
         api_base = self.api_base_input.text().strip()
         api_keys = self.api_keys
 
@@ -70,30 +73,33 @@ class LLMConnectionSettingsPage(QWidget):
             return
 
         # 创建进度对话框
-        progress = QProgressDialog("正在测试API连接...", "取消", 0, 1, self)
+        progress = QProgressDialog("正在获取模型列表...", "取消", 0, 1, self)
         progress.setWindowModality(Qt.WindowModal)
-        progress.setWindowTitle("API连接测试")
+        progress.setWindowTitle("获取模型列表")
         progress.setAutoClose(True)
         progress.show()
 
         try:
-            # 发出连接信号，进行API测试
+            # 发出连接信号，获取模型列表
             self.api_connected.emit({
                 'api_keys': api_keys,
                 'api_base': api_base
             })
             
-            # 清空并禁用模型下拉框，等待更新
-            self.model_name_combo.clear()
-            self.model_name_combo.addItem("正在获取模型列表...")
-            self.model_name_combo.setEnabled(False)
-            
-            QMessageBox.information(self, "测试成功", "API连接测试成功!")
-            
         except Exception as e:
-            QMessageBox.critical(self, "测试失败", f"API连接测试失败：{str(e)}")
+            QMessageBox.warning(self, "获取失败", f"获取模型列表失败：{str(e)}\n您可以点击'手动输入模型'按钮来指定模型。")
         finally:
             progress.close()
+
+    def manual_input_model(self):
+        """手动输入模型名称"""
+        model_name, ok = QInputDialog.getText(self, "手动输入", "请输入模型名称:", QLineEdit.Normal)
+        if ok and model_name.strip():
+            self.model_name_combo.clear()
+            self.model_name_combo.addItem(model_name.strip())
+            self.model_name_combo.setEnabled(True)
+            # 触发模型选择变更
+            self.on_model_name_changed(0)
 
     @pyqtSlot(int)
     def on_model_name_changed(self, index):

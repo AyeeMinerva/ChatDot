@@ -70,11 +70,11 @@ class LLMClient:
                     except Exception as e:
                         print(f"API Key {key[:8]}... 测试失败: {e}")
                 
-                if not valid_keys:
-                    self.client = None
-                    raise RuntimeError("没有有效的API Keys")
-                
-                self.api_keys = deque(valid_keys)
+                #去除apikeys筛选逻辑
+                # if not valid_keys:
+                #     self.client = None
+                #     raise RuntimeError("没有有效的API Keys")
+                # self.api_keys = deque(valid_keys)
             
             # 不管是否测试，都设置第一个key为当前client
             self.client = openai.OpenAI(
