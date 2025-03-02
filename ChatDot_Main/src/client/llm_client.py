@@ -112,8 +112,11 @@ class LLMClient:
             raise ValueError("模型参数必须是字典类型。")
         self.model_params = params
         print(f"模型参数设置为: {params}")
+        if 'stream' not in self.model_params:
+            self.model_params['stream'] = True  # 默认启用
 
-    def communicate(self, messages, model_name=None, stream=False, model_params_override=None):
+    #def communicate(self, messages, model_name=None, stream=False, model_params_override=None): #stream参数现已整合进params
+    def communicate(self, messages, model_name=None, model_params_override=None):
         if not self.client:
             raise RuntimeError("LLMClient 未连接到 API，请先配置 API 连接。")
 
@@ -128,18 +131,18 @@ class LLMClient:
             api_key=api_key,
             base_url=self.api_base
         )
-
+        stream = params.get('stream', False)
         print(f"--- LLM Request Parameters ---")
         print(f"Model Name: {final_model_name}")
         print(f"Model Params: {params}")
-        print(f"Stream: {stream}")
+        #print(f"Stream: {stream}") #stream参数现已整合进params
         print(f"Messages: {messages}")
 
         try:
             response = self.client.chat.completions.create(
                 model=final_model_name,
                 messages=messages,
-                stream=stream,
+                #stream=stream, #stream参数现已整合进params
                 **params
             )
             if stream:

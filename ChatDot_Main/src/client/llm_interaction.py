@@ -31,10 +31,29 @@ class LLMChatThread(QThread):
     def run(self):
         self._is_running = True
         try:
-            for chunk in self.llm_client.communicate(messages=self.messages, model_name=self.model_name, stream=True, model_params_override=self.model_params_override):
-                if not self._is_running:
-                    break
-                self.stream_output.emit(chunk)
+            # 检查是否使用流式输出
+            use_stream = self.model_params_override.get('stream', True)
+            
+            if use_stream:
+                # 流式输出模式
+                for chunk in self.llm_client.communicate(
+                    messages=self.messages,
+                    model_name=self.model_name, 
+                    model_params_override=self.model_params_override
+                ):
+                    if not self._is_running:
+                        break
+                    self.stream_output.emit(chunk)
+            else:
+                # 非流式输出模式
+                response = self.llm_client.communicate(
+                    messages=self.messages,
+                    model_name=self.model_name,
+                    model_params_override=self.model_params_override
+                )
+                if self._is_running:
+                    self.stream_output.emit(response)
+                    
         except RuntimeError as e:
             self.stream_output.emit(f"\n[Error]: {e}")
         finally:

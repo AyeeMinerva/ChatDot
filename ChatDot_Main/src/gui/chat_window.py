@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea, QDesktopWidget, QApplication, QApplication
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea, QDesktopWidget, QApplication
 from PyQt5.QtCore import Qt, QPoint, QRect, QTimer
 from client.llm_client import LLMClient
 from client.llm_interaction import LLMChatThread
@@ -6,12 +6,13 @@ from gui.components.message_bubble import MessageBubble
 from persistence.settings_persistence import load_settings
 from persistence.chat_history_persistence import ChatHistory
 from PyQt5.QtGui import QCursor, QColor
+# 导入模型参数设置页面
+from gui.settings.model_params_settings import ModelParamsSettingsPage
 
 class ChatWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("My Chat Window")
-        # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
 
         # 设置窗口属性为半透明背景
@@ -23,6 +24,7 @@ class ChatWindow(QMainWindow):
         self.llm_thread = None
         self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
         self.assistant_prefix_added = False
+        self.model_params_settings = ModelParamsSettingsPage()  # 创建模型参数设置实例
         self.init_ui()
         self.enable_send_buttons()
         self.load_saved_settings()
@@ -58,7 +60,6 @@ class ChatWindow(QMainWindow):
         # 设置 scroll_area 背景透明
         self.scroll_area.setStyleSheet("QScrollArea { background: transparent; border: 0px; }")
         self.scroll_area.viewport().setStyleSheet("QWidget{background: transparent;}")
-
 
         self.scroll_content = QWidget(self.scroll_area)
         self.messages_layout = QVBoxLayout(self.scroll_content)
@@ -128,13 +129,16 @@ class ChatWindow(QMainWindow):
         # self.stop_button.setEnabled(True)
         # self.clear_button.setEnabled(True)
 
-        model_params_override = {}
+        # 获取模型参数设置
+        model_params_override = self.model_params_settings.get_model_params_settings()
         selected_model_name = self.llm_client.get_model_name()
         if not selected_model_name:
             selected_model_name = "gpt-3.5-turbo"
             QMessageBox.warning(self, "模型未选择", "请在设置中选择 LLM 模型，当前使用默认模型 gpt-3.5-turbo。")
 
         print(f"\n--- Debug - Selected Model Name from llm_client: {selected_model_name} ---")
+        print(f"--- Debug - Model Parameters: {model_params_override} ---")
+        
         self.assistant_prefix_added = False
         self.llm_thread = LLMChatThread(self.llm_client, self.messages, model_params_override, selected_model_name)
         self.llm_thread.stream_output.connect(self.update_llm_output)
