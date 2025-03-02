@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QMenu, QAction, QTextEdit, QPushButton, QSizePolicy
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QEvent, QEvent
 from PyQt5.QtGui import QColor, QPalette, QTextCursor
 
 class MessageBubble(QWidget):
@@ -22,34 +22,18 @@ class MessageBubble(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
 
-        # 创建顶部按钮布局
-        button_layout = QHBoxLayout()
-        button_layout.setAlignment(Qt.AlignRight)
-
-        if self.role == "assistant":
-            retry_button = QPushButton("🔄", self)
-            retry_button.setFixedSize(25, 25)
-            retry_button.clicked.connect(lambda: self.retry_requested.emit(self.index))
-            button_layout.addWidget(retry_button)
-
-        edit_button = QPushButton("✏️", self)
-        edit_button.setFixedSize(25, 25)
-        edit_button.clicked.connect(self.toggle_edit_mode)
-        button_layout.addWidget(edit_button)
-
-        delete_button = QPushButton("❌", self)
-        delete_button.setFixedSize(25, 25)
-        delete_button.clicked.connect(lambda: self.delete_requested.emit(self.index))
-        button_layout.addWidget(delete_button)
-
-        layout.addLayout(button_layout)
-
+        # 移除顶部按钮布局，使用右键菜单替代
+        # 直接添加消息内容
+        
         # 设置消息内容编辑框
         self.content_edit = QTextEdit(self)
         self.content_edit.setReadOnly(True)
         self.content_edit.setText(self.message)
         self.content_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.content_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # 禁用QTextEdit的默认上下文菜单，使用我们自己的菜单
+        self.content_edit.setContextMenuPolicy(Qt.NoContextMenu)
         
         # 设置文本框自适应内容大小
         self.content_edit.document().contentsChanged.connect(self.adjust_text_edit_size)
@@ -100,12 +84,33 @@ class MessageBubble(QWidget):
             self.content_edit.setStyleSheet(self.content_edit.styleSheet().replace("border: 2px solid #4A90E2;", ""))
             self.edit_completed.emit(self.index, self.content_edit.toPlainText())
 
-    def contextMenuEvent(self, event):
-        menu = QMenu(self)
+    # 监听整个气泡的鼠标点击事件
+    def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self.showCustomContextMenu(event.globalPos())
+        else:
+            super().mousePressEvent(event)
+    
+    # 监听QTextEdit的鼠标点击事件
+    def eventFilter(self, obj, event):
+        if obj == self.content_edit and event.type() == QEvent.MouseButtonPress:
+            if event.button() == Qt.RightButton:
+                self.showCustomContextMenu(event.globalPos())
+                return True
+        return super().eventFilter(obj, event)
+
+    def showCustomContextMenu(self, position):
+        menu = QMenu()
+        
+        # 如果是AI回复，添加重试选项
+        if self.role == "assistant":
+            retry_action = QAction("重新生成", self)
+            retry_action.triggered.connect(lambda: self.retry_requested.emit(self.index))
+            menu.addAction(retry_action)
         
         # 所有消息都支持编辑和删除
         edit_action = QAction("编辑", self)
-        edit_action.triggered.connect(self.edit_message)
+        edit_action.triggered.connect(self.toggle_edit_mode)
         menu.addAction(edit_action)
         
         delete_action = QAction("删除", self)
@@ -117,25 +122,12 @@ class MessageBubble(QWidget):
             switch_menu = menu.addMenu("切换候选")
             for i, _ in enumerate(self.alternatives):
                 action = QAction(f"候选 {i+1}", self)
+                # 使用lambda捕获循环变量时需要使用默认参数
                 action.triggered.connect(lambda checked, idx=i: self.switch_alternative(idx))
                 switch_menu.addAction(action)
         
-        menu.exec_(event.globalPos())
-        
-    def edit_message(self):
-        self.editing = True
-        self.content_edit.setReadOnly(False)
-        self.content_edit.setFocus()
-        self.confirm_button.show()
-        self.cancel_button.show()
-        # 设置文本框样式以显示可编辑状态
-        self.content_edit.setStyleSheet("""
-            QTextEdit {
-                background: rgba(255, 255, 255, 180);
-                border: 1px solid #ccc;
-            }
-        """)
-        
+        menu.exec_(position)
+
     def confirm_edit(self):
         self.editing = False
         self.content_edit.setReadOnly(True)
