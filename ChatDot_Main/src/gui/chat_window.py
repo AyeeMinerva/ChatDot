@@ -1,6 +1,3 @@
-import os
-os.environ['PYTHONIOENCODING'] = 'UTF-8'
-import sys
 from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QSizePolicy, QScrollArea, QDesktopWidget, QApplication, QApplication
 from PyQt5.QtCore import Qt, QPoint, QRect, QTimer
 from client.llm_client import LLMClient
@@ -8,13 +5,20 @@ from client.llm_interaction import LLMChatThread
 from gui.components.message_bubble import MessageBubble
 from persistence.settings_persistence import load_settings
 from persistence.chat_history_persistence import ChatHistory
-from PyQt5.QtGui import QCursor
+from PyQt5.QtGui import QCursor, QColor
 
 class ChatWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("My Chat Window")
-        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+
+        # 设置窗口属性为半透明背景
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        # 设置窗口背景为透明，QMainWindow 的默认背景可能需要清除
+        self.setStyleSheet("QMainWindow {background: transparent;}")
+
         self.llm_client = LLMClient()
         self.llm_thread = None
         self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
@@ -41,11 +45,20 @@ class ChatWindow(QMainWindow):
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(10)
 
+        # 设置 central_widget 背景透明
+        self.central_widget.setStyleSheet("QWidget { background: transparent; }")
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
         # 消息显示区域（滚动）
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # 自动显示滚动条
+
+        # 设置 scroll_area 背景透明
+        self.scroll_area.setStyleSheet("QScrollArea { background: transparent; border: 0px; }")
+        self.scroll_area.viewport().setStyleSheet("QWidget{background: transparent;}")
+
 
         self.scroll_content = QWidget(self.scroll_area)
         self.messages_layout = QVBoxLayout(self.scroll_content)
@@ -53,6 +66,10 @@ class ChatWindow(QMainWindow):
         self.messages_layout.setSpacing(10)
         self.messages_layout.addStretch()  # 消息置底的关键
         self.scroll_content.setLayout(self.messages_layout)
+
+        # 设置 scroll_content 背景透明
+        self.scroll_content.setStyleSheet("QWidget { background: transparent; }")
+
         self.scroll_area.setWidget(self.scroll_content)
         self.layout.addWidget(self.scroll_area)
 
@@ -63,30 +80,35 @@ class ChatWindow(QMainWindow):
         self.user_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.user_input.returnPressed.connect(self.send_message)
         self.user_input_layout.addWidget(self.user_input)
+        # 用户输入区域也设置为透明，如果需要
+        self.user_input.setStyleSheet("QLineEdit { background: rgba(255, 255, 255, 150); border: 1px solid rgba(200, 200, 200, 150); }")  # 半透明白色背景
 
         self.send_button = QPushButton("发送", self)
         self.send_button.clicked.connect(self.send_message)
-        self.user_input_layout.addWidget(self.send_button)
+        # self.user_input_layout.addWidget(self.send_button)
+        self.send_button.hide()
         self.layout.addLayout(self.user_input_layout)
+        # 发送按钮区域也设置为透明，如果需要
+        # self.send_button.setStyleSheet("QPushButton { background: transparent; }")
 
         # 操作按钮区域
-        self.operation_layout = QHBoxLayout()
-        self.stop_button = QPushButton("停止", self)
-        self.stop_button.clicked.connect(self.stop_llm)
-        self.operation_layout.addWidget(self.stop_button)
+        # self.operation_layout = QHBoxLayout()
+        # self.stop_button = QPushButton("停止", self)
+        # self.stop_button.clicked.connect(self.stop_llm)
+        # self.operation_layout.addWidget(self.stop_button)
 
-        self.clear_button = QPushButton("清除上下文", self)
-        self.clear_button.clicked.connect(self.clear_context)
-        self.operation_layout.addWidget(self.clear_button)
-        self.layout.addLayout(self.operation_layout)
+        # self.clear_button = QPushButton("清除上下文", self)
+        # self.clear_button.clicked.connect(self.clear_context)
+        # self.operation_layout.addWidget(self.clear_button)
+        # self.layout.addLayout(self.operation_layout)
 
         # 初始滚动到底部
         QTimer.singleShot(0, self.scroll_to_bottom)
 
     def enable_send_buttons(self):
         self.send_button.setEnabled(True)
-        self.stop_button.setEnabled(True)
-        self.clear_button.setEnabled(True)
+        # self.stop_button.setEnabled(True)
+        # self.clear_button.setEnabled(True)
 
     def send_message(self, retry=False):
         if not retry:
@@ -103,8 +125,8 @@ class ChatWindow(QMainWindow):
             return
 
         self.send_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
-        self.clear_button.setEnabled(True)
+        # self.stop_button.setEnabled(True)
+        # self.clear_button.setEnabled(True)
 
         model_params_override = {}
         selected_model_name = self.llm_client.get_model_name()
@@ -193,7 +215,7 @@ class ChatWindow(QMainWindow):
                     bubble = item.widget()
                     if bubble.index > index:
                         bubble.index -= 1
-            
+
             # 保存更新后的消息历史到文件
             self.chat_history.save_history(self.messages)
 
@@ -281,7 +303,7 @@ class ChatWindow(QMainWindow):
             desktop = QApplication.desktop()
             screen_number = desktop.screenNumber(ball_pos)
             screen = desktop.screenGeometry(screen_number)
-            
+
             # 计算初始位置（在悬浮球右下方）
             chat_window_x = ball_pos.x() + self.parent().width() + 10
             chat_window_y = ball_pos.y() + self.parent().height()
@@ -295,7 +317,7 @@ class ChatWindow(QMainWindow):
                 chat_window_x = screen.left()
             elif chat_window_x + self.width() > screen.right():
                 chat_window_x = screen.right() - self.width()
-            
+
             if chat_window_y < screen.top():
                 chat_window_y = screen.top()
 
@@ -342,12 +364,12 @@ class ChatWindow(QMainWindow):
     def load_chat_history(self, history):
         # 清空当前上下文
         self.clear_context()
-        
+
         # 加载历史记录
         self.messages = history
         # 显示所有消息
         for msg in history:
             if msg["role"] not in ["system"]:  # 跳过system消息
                 self.add_message_bubble(msg["content"], msg["role"])
-        
+
         self.scroll_to_bottom()

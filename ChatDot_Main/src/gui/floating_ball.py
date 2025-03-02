@@ -194,6 +194,15 @@ class FloatingBall(QWidget):
 
     def contextMenuEvent(self, event):
         context_menu = QMenu(self)
+        if self.chat_window.llm_thread and self.chat_window.llm_thread.isRunning():
+            stop_action = QAction("停止生成", self)
+            stop_action.triggered.connect(self.chat_window.stop_llm)
+            context_menu.addAction(stop_action)
+        
+        clear_action = QAction("清除上下文", self)
+        clear_action.triggered.connect(self.chat_window.clear_context)
+        context_menu.addAction(clear_action)
+        context_menu.addSeparator()
         setting_action = QAction("设置", self)
         setting_action.triggered.connect(self.openSettingWindow)
         context_menu.addAction(setting_action)
