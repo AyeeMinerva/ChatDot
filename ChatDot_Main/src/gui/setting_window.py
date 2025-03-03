@@ -116,7 +116,7 @@ class SettingWindow(QDialog):
 
     def applySettings(self):
         llm_connection_settings = self.llm_connection_settings_page.get_llm_connection_settings()
-        api_key = llm_connection_settings.get('api_key')
+        api_key = llm_connection_settings.get('api_keys',[])
         api_base = llm_connection_settings.get('api_base')
         try:
             self.llm_client.set_api_config(api_key=api_key, api_base=api_base)

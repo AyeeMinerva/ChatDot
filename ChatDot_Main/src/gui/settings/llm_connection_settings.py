@@ -100,6 +100,11 @@ class LLMConnectionSettingsPage(QWidget):
             self.model_name_combo.setEnabled(True)
             # 触发模型选择变更
             self.on_model_name_changed(0)
+            # 发出API连接信号以保存设置
+            self.api_connected.emit({
+                'api_keys': self.api_keys,
+                'api_base': self.api_base_input.text().strip()
+            })
 
     @pyqtSlot(int)
     def on_model_name_changed(self, index):
