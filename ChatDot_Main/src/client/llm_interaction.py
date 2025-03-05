@@ -18,6 +18,7 @@ class LLMChatThread(QThread):
         stop(): 停止当前运行的通信线程
     """
     stream_output = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
     complete = pyqtSignal()
 
     def __init__(self, llm_client, messages, model_params_override, model_name):
@@ -26,38 +27,46 @@ class LLMChatThread(QThread):
         self.messages = messages
         self.model_params_override = model_params_override
         self.model_name = model_name
-        self._is_running = True  # 新增标志
+        self._is_running = True
 
     def run(self):
         self._is_running = True
         try:
-            # 检查是否使用流式输出
             use_stream = self.model_params_override.get('stream', True)
             
+            if not self.model_name or not self.model_name.strip():
+                raise ValueError("模型名称不能为空")
+
             if use_stream:
-                # 流式输出模式
-                for chunk in self.llm_client.communicate(
-                    messages=self.messages,
-                    model_name=self.model_name, 
-                    model_params_override=self.model_params_override
-                ):
-                    if not self._is_running:
-                        break
-                    self.stream_output.emit(chunk)
+                try:
+                    for chunk in self.llm_client.communicate(
+                        messages=self.messages,
+                        model_name=self.model_name, 
+                        model_params_override=self.model_params_override
+                    ):
+                        if not self._is_running:
+                            break
+                        if chunk:
+                            self.stream_output.emit(chunk)
+                except Exception as e:
+                    self.error_occurred.emit(str(e))
             else:
-                # 非流式输出模式
-                response = self.llm_client.communicate(
-                    messages=self.messages,
-                    model_name=self.model_name,
-                    model_params_override=self.model_params_override
-                )
-                if self._is_running:
-                    self.stream_output.emit(response)
+                try:
+                    response = self.llm_client.communicate(
+                        messages=self.messages,
+                        model_name=self.model_name,
+                        model_params_override=self.model_params_override
+                    )
+                    if self._is_running and response:
+                        self.stream_output.emit(response)
+                except Exception as e:
+                    self.error_occurred.emit(str(e))
                     
-        except RuntimeError as e:
-            self.stream_output.emit(f"\n[Error]: {e}")
+        except Exception as e:
+            self.error_occurred.emit(str(e))
         finally:
-            self.complete.emit()
+            if self._is_running:
+                self.complete.emit()
 
     def stop(self):
         self._is_running = False

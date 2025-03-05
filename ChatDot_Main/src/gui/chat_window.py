@@ -23,7 +23,11 @@ class ChatWindow(QMainWindow):
         self.llm_client = LLMClient()
         self.llm_thread = None
         self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+            # 连接错误信号
+        if self.llm_thread:
+            self.llm_thread.error_occurred.connect(self.handle_error_response)
         self.assistant_prefix_added = False
+        
         self.model_params_settings = ModelParamsSettingsPage()  # 创建模型参数设置实例
         self.init_ui()
         self.enable_send_buttons()
@@ -142,6 +146,7 @@ class ChatWindow(QMainWindow):
         self.assistant_prefix_added = False
         self.llm_thread = LLMChatThread(self.llm_client, self.messages, model_params_override, selected_model_name)
         self.llm_thread.stream_output.connect(self.update_llm_output)
+        self.llm_thread.error_occurred.connect(self.handle_error_response)
         self.llm_thread.complete.connect(self.complete_output)
         self.llm_thread.start()
 
@@ -169,6 +174,14 @@ class ChatWindow(QMainWindow):
         self.enable_send_buttons()
         # 输出完成后再次调整窗口大小
         #self.adjustWindowSize()
+        
+    def handle_error_response(self, error_message):
+        """处理 LLM 错误响应"""
+        error_content = f"[错误] {error_message}"
+        self.messages.append({"role": "error", "content": error_content})
+        self.add_message_bubble(error_content, "error")
+        self.enable_send_buttons()  # 重新启用发送按钮
+        self.chat_history.save_history(self.messages)  # 保存历史记录
 
     def stop_llm(self):
         if self.llm_thread and self.llm_thread.isRunning():

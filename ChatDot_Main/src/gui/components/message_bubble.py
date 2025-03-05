@@ -17,6 +17,10 @@ class MessageBubble(QWidget):
         self.current_alt_index = 0  # 当前显示的候选回复索引
         self.initUI()
         
+        #信号连接
+        self.content_edit.textChanged.connect(self.adjust_text_edit_size)
+        self.content_edit.document().documentLayout().documentSizeChanged.connect(self.adjust_text_edit_size)
+        
     def initUI(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
@@ -60,7 +64,7 @@ class MessageBubble(QWidget):
 
         layout.addWidget(self.content_edit)
         self.adjust_text_edit_size()
-
+        
     def adjust_text_edit_size(self):
         # 获取文档大小
         doc_size = self.content_edit.document().size()
