@@ -1,10 +1,5 @@
-# ChatDot
 
-<div align="center">
-An elegant floating ball LLM frontend, providing convenient access to LLM capabilities while maintaining powerful features.
-
-一个优雅的悬浮球式 LLM 前端，致力于提供便捷的 LLM 访问方式，并兼容强大的功能。
-</div>
+![ChatDot](https://socialify.git.ci/AyeeMinerva/ChatDot/image?description=1&font=Inter&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Auto)
 
 ## 💡 Introduction | 简介
 
