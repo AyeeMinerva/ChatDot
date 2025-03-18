@@ -8,7 +8,10 @@ from gui.settings.prompt_settings import PromptSettingsPage
 
 from client.llm_client import LLMClient
 from client.llm_interaction import LLMModelListThread
-from persistence.settings_persistence import load_settings, save_settings  # 新增导入
+from persistence.settings_persistence import load_settings, save_settings
+
+import os
+import importlib.util
 
 class SettingWindow(QDialog):
     api_connected_signal = pyqtSignal()
@@ -48,12 +51,10 @@ class SettingWindow(QDialog):
         self.llm_connection_settings_page.api_connected.connect(self.handle_api_connected)
         self.llm_connection_settings_page.model_name_changed_signal.connect(self.handle_model_name_changed)
 
-        # 自动保存设置的信号连接
-        self.model_params_settings_page.param_checkboxes['temperature'].stateChanged.connect(self.auto_save_settings)
-        self.model_params_settings_page.param_checkboxes['top_p'].stateChanged.connect(self.auto_save_settings)
-        self.model_params_settings_page.param_checkboxes['max_tokens'].stateChanged.connect(self.auto_save_settings)
-        self.model_params_settings_page.param_checkboxes['frequency_penalty'].stateChanged.connect(self.auto_save_settings)
-        self.model_params_settings_page.param_checkboxes['presence_penalty'].stateChanged.connect(self.auto_save_settings)
+        # 简化自动保存设置的信号连接
+        for param in self.model_params_settings_page.param_checkboxes:
+            self.model_params_settings_page.param_checkboxes[param].stateChanged.connect(self.auto_save_settings)
+        
         # 连接prompt变更信号
         self.prompt_settings_page.prompt_changed.connect(self.handle_prompt_changed)
 
@@ -105,14 +106,19 @@ class SettingWindow(QDialog):
             if 'presence_penalty' in model_params:
                 self.model_params_settings_page.presence_penalty_spinbox.setValue(model_params['presence_penalty'])
                 self.model_params_settings_page.param_checkboxes['presence_penalty'].setChecked(True)
+                
         # 加载 prompt 处理器设置
         prompt_handler = settings.get('prompt_handler', '')
         if prompt_handler:
             # 使用 set_current_handler 方法设置当前处理器
             self.prompt_settings_page.set_current_handler(prompt_handler)
-            # 同时设置聊天窗口的处理器
-            self.handle_prompt_changed(prompt_handler)
-
+            
+            # 获取初始化好的处理器对象并设置到 chat_window
+            if self.prompt_settings_page.current_handler:
+                self.floating_ball.chat_window.set_chat_handler(self.prompt_settings_page.current_handler)
+                print(f"启动时已加载处理器: {prompt_handler}")
+                
+                
     def save_user_settings(self):
         # 获取当前选中的 prompt 处理器文件名
         current_item = self.prompt_settings_page.prompt_list.currentItem()
@@ -127,16 +133,16 @@ class SettingWindow(QDialog):
                         for i in range(self.llm_connection_settings_page.model_name_combo.count())
                         if self.llm_connection_settings_page.model_name_combo.itemText(i) not in 
                         ["请先连接API", "正在获取模型列表...", "模型列表为空"]],
-            'prompt_handler': prompt_handler  # 添加 prompt handler 设置
+            'prompt_handler': prompt_handler  # 保存处理器文件名
         }
         save_settings(settings)
 
     def applySettings(self):
         llm_connection_settings = self.llm_connection_settings_page.get_llm_connection_settings()
-        api_key = llm_connection_settings.get('api_keys',[])
+        api_keys = llm_connection_settings.get('api_keys',[])
         api_base = llm_connection_settings.get('api_base')
         try:
-            self.llm_client.set_api_config(api_key=api_key, api_base=api_base)
+            self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
         except Exception as e:
             QMessageBox.warning(self, "API 配置错误", str(e))
             return
@@ -204,6 +210,8 @@ class SettingWindow(QDialog):
     def handle_model_name_changed(self, model_name):
         print(f"接收到模型名称改变信号，新模型名称: {model_name}")
         self.llm_client.set_model_name(model_name)
+        # 自动保存设置
+        self.save_user_settings()
 
     def handle_model_list_error(self, error_message):
         self.llm_connection_settings_page.model_name_combo.clear()
@@ -216,8 +224,15 @@ class SettingWindow(QDialog):
         self.llm_connection_settings_page.model_name_combo.setEnabled(False)
 
     def handle_prompt_changed(self, handler):
-        """当选择新的prompt处理器时"""
+        """当选择新的prompt处理器时
+        
+        Args:
+            handler: 处理器对象或处理器文件名
+        """
+        # 已经是对象类型，直接设置
         self.floating_ball.chat_window.set_chat_handler(handler)
+        # 自动保存设置
+        self.save_user_settings()
 
     def auto_save_settings(self):
         # 获取当前设置并保存

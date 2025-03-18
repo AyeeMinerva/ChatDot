@@ -285,7 +285,7 @@ class ChatWindow(QMainWindow):
 
         if api_keys and api_base:
             try:
-                self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base)
+                self.llm_client.set_api_config(api_keys=api_keys, api_base=api_base,test_connection=False)
                 if model_name:
                     self.llm_client.set_model_name(model_name)
             except Exception as e:

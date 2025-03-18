@@ -68,7 +68,7 @@ class LLMClient:
                         test_client.models.list()
                         valid_keys.append(key)
                     except Exception as e:
-                        print(f"API Key {key[:8]}... 测试失败: {e}")
+                        print(f"API Key {key[:8]}... 测试失败(llm_client.set_api_config): {e}")
                 
                 #去除apikeys筛选逻辑
                 # if not valid_keys:
@@ -96,7 +96,7 @@ class LLMClient:
             print("API 连接测试成功，成功获取模型列表...")
         except Exception as e:
             self.client = None
-            raise RuntimeError(f"API 连接测试失败: {e}")
+            raise RuntimeError(f"API 连接测试失败(test_connection): {e}")
 
     def set_model_name(self, model_name):
         if not model_name:
