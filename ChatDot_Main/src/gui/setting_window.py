@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from gui.settings.floating_ball_settings import FloatingBallSettingsPage
 from gui.settings.llm_connection_settings import LLMConnectionSettingsPage
 from gui.settings.model_params_settings import ModelParamsSettingsPage
+from gui.settings.prompt_settings import PromptSettingsPage
 
 from client.llm_client import LLMClient
 from client.llm_interaction import LLMModelListThread
@@ -19,6 +20,7 @@ class SettingWindow(QDialog):
         self.llm_connection_settings_page = LLMConnectionSettingsPage()
         self.floating_ball_settings_page = FloatingBallSettingsPage(floating_ball)
         self.model_params_settings_page = ModelParamsSettingsPage()
+        self.prompt_settings_page = PromptSettingsPage()
         self.initUI()
         self.load_user_settings()  # 打开设置时加载用户设置
 
@@ -36,6 +38,7 @@ class SettingWindow(QDialog):
         self.tab_widget.addTab(self.floating_ball_settings_page, "悬浮球")
         self.tab_widget.addTab(self.llm_connection_settings_page, "LLM 连接")
         self.tab_widget.addTab(self.model_params_settings_page, "模型参数")
+        self.tab_widget.addTab(self.prompt_settings_page, "对话处理")
         main_layout.addWidget(self.tab_widget)
 
         self.setLayout(main_layout)
@@ -51,6 +54,8 @@ class SettingWindow(QDialog):
         self.model_params_settings_page.param_checkboxes['max_tokens'].stateChanged.connect(self.auto_save_settings)
         self.model_params_settings_page.param_checkboxes['frequency_penalty'].stateChanged.connect(self.auto_save_settings)
         self.model_params_settings_page.param_checkboxes['presence_penalty'].stateChanged.connect(self.auto_save_settings)
+        # 连接prompt变更信号
+        self.prompt_settings_page.prompt_changed.connect(self.handle_prompt_changed)
 
     def load_user_settings(self):
         settings = load_settings()
@@ -100,17 +105,29 @@ class SettingWindow(QDialog):
             if 'presence_penalty' in model_params:
                 self.model_params_settings_page.presence_penalty_spinbox.setValue(model_params['presence_penalty'])
                 self.model_params_settings_page.param_checkboxes['presence_penalty'].setChecked(True)
+        # 加载 prompt 处理器设置
+        prompt_handler = settings.get('prompt_handler', '')
+        if prompt_handler:
+            # 使用 set_current_handler 方法设置当前处理器
+            self.prompt_settings_page.set_current_handler(prompt_handler)
+            # 同时设置聊天窗口的处理器
+            self.handle_prompt_changed(prompt_handler)
 
     def save_user_settings(self):
+        # 获取当前选中的 prompt 处理器文件名
+        current_item = self.prompt_settings_page.prompt_list.currentItem()
+        prompt_handler = current_item.text() if current_item else ''
+        
         settings = {
             'api_base': self.llm_connection_settings_page.api_base_input.text().strip(),
             'api_keys': self.llm_connection_settings_page.api_keys,
             'model_params': self.model_params_settings_page.get_model_params_settings(),
             'model_name': self.llm_client.get_model_name(),
             'model_list': [self.llm_connection_settings_page.model_name_combo.itemText(i) 
-                          for i in range(self.llm_connection_settings_page.model_name_combo.count())
-                          if self.llm_connection_settings_page.model_name_combo.itemText(i) not in 
-                          ["请先连接API", "正在获取模型列表...", "模型列表为空"]]
+                        for i in range(self.llm_connection_settings_page.model_name_combo.count())
+                        if self.llm_connection_settings_page.model_name_combo.itemText(i) not in 
+                        ["请先连接API", "正在获取模型列表...", "模型列表为空"]],
+            'prompt_handler': prompt_handler  # 添加 prompt handler 设置
         }
         save_settings(settings)
 
@@ -197,6 +214,10 @@ class SettingWindow(QDialog):
         self.llm_connection_settings_page.model_name_combo.clear()
         self.llm_connection_settings_page.model_name_combo.addItem(f"API 错误: {error_message}")
         self.llm_connection_settings_page.model_name_combo.setEnabled(False)
+
+    def handle_prompt_changed(self, handler):
+        """当选择新的prompt处理器时"""
+        self.floating_ball.chat_window.set_chat_handler(handler)
 
     def auto_save_settings(self):
         # 获取当前设置并保存

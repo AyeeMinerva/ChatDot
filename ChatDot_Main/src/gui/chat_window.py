@@ -9,6 +9,8 @@ from PyQt5.QtGui import QCursor, QColor
 # 导入模型参数设置页面
 from gui.settings.model_params_settings import ModelParamsSettingsPage
 
+from gui.chat_handle import ChatHandle
+
 class ChatWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -22,8 +24,9 @@ class ChatWindow(QMainWindow):
 
         self.llm_client = LLMClient()
         self.llm_thread = None
-        self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
-            # 连接错误信号
+        #self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.messages = []
+        # 连接错误信号
         if self.llm_thread:
             self.llm_thread.error_occurred.connect(self.handle_error_response)
         self.assistant_prefix_added = False
@@ -34,6 +37,8 @@ class ChatWindow(QMainWindow):
         self.load_saved_settings()
         self.chat_history = ChatHistory()
         self.setAcceptDrops(True)  # 启用拖放功能
+        
+        self.chat_handler = None
 
     def init_ui(self):
         # 窗口基础设置
@@ -143,8 +148,20 @@ class ChatWindow(QMainWindow):
         print(f"\n--- Debug - Selected Model Name from llm_client: {selected_model_name} ---")
         print(f"--- Debug - Model Parameters: {model_params_override} ---")
         
+        #调用聊天处理器
+        if self.chat_handler:
+            try:
+                local_messages, llm_messages = self.chat_handler.process_before_send(self.messages.copy())
+                self.messages = local_messages  # 更新本地消息
+                messages_to_send = llm_messages  # 用于发送给 LLM 的消息
+            except Exception as e:
+                QMessageBox.warning(self, "处理器错误", f"处理器处理消息时发生错误: {str(e)}")
+                return
+        else:
+            messages_to_send = self.messages
+            
         self.assistant_prefix_added = False
-        self.llm_thread = LLMChatThread(self.llm_client, self.messages, model_params_override, selected_model_name)
+        self.llm_thread = LLMChatThread(self.llm_client, messages_to_send, model_params_override, selected_model_name)
         self.llm_thread.stream_output.connect(self.update_llm_output)
         self.llm_thread.error_occurred.connect(self.handle_error_response)
         self.llm_thread.complete.connect(self.complete_output)
@@ -190,7 +207,8 @@ class ChatWindow(QMainWindow):
             self.enable_send_buttons()
 
     def clear_context(self):
-        self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        #self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.messages = []
         # 清除所有消息气泡
         while self.messages_layout.count() > 1:  # 保留最后的 stretch
             item = self.messages_layout.takeAt(0)
@@ -390,3 +408,7 @@ class ChatWindow(QMainWindow):
                 self.add_message_bubble(msg["content"], msg["role"])
 
         self.scroll_to_bottom()
+        
+    def set_chat_handler(self, handler: ChatHandle):
+        """设置新的聊天处理器"""
+        self.chat_handler = handler

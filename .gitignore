@@ -1,5 +1,7 @@
 secrets/
 SECRETS/
+SECRETS_*
+SECRET_*
 *.secret
 *.key
 .secrets
