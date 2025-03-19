@@ -5,6 +5,14 @@ from datetime import datetime
 class ChatHistory:
     def __init__(self, directory="ChatDot_Main\history"):
         self.filepath = directory
+        
+        # 确保历史记录目录存在
+        if not os.path.exists(directory):
+            try:
+                os.makedirs(directory)
+            except Exception as e:
+                print(f"创建历史记录目录失败: {e}")
+                
         # 获取当前时间并格式化日期和时间
         current_date = datetime.now().strftime("%Y%m%d")
         current_time = datetime.now().strftime("%H%M%S")

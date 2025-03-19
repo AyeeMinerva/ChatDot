@@ -5,10 +5,12 @@ from gui.settings.floating_ball_settings import FloatingBallSettingsPage
 from gui.settings.llm_connection_settings import LLMConnectionSettingsPage
 from gui.settings.model_params_settings import ModelParamsSettingsPage
 from gui.settings.prompt_settings import PromptSettingsPage
+from gui.settings.history_settings import HistorySettingsPage
 
 from client.llm_client import LLMClient
 from client.llm_interaction import LLMModelListThread
 from persistence.settings_persistence import load_settings, save_settings
+from persistence.chat_history_persistence import ChatHistory
 
 import os
 import importlib.util
@@ -24,6 +26,7 @@ class SettingWindow(QDialog):
         self.floating_ball_settings_page = FloatingBallSettingsPage(floating_ball)
         self.model_params_settings_page = ModelParamsSettingsPage()
         self.prompt_settings_page = PromptSettingsPage()
+        self.history_settings_page = HistorySettingsPage()
         self.initUI()
         self.load_user_settings()  # 打开设置时加载用户设置
 
@@ -42,6 +45,7 @@ class SettingWindow(QDialog):
         self.tab_widget.addTab(self.llm_connection_settings_page, "LLM 连接")
         self.tab_widget.addTab(self.model_params_settings_page, "模型参数")
         self.tab_widget.addTab(self.prompt_settings_page, "对话处理")
+        self.tab_widget.addTab(self.history_settings_page, "历史记录")
         main_layout.addWidget(self.tab_widget)
 
         self.setLayout(main_layout)
@@ -57,6 +61,9 @@ class SettingWindow(QDialog):
         
         # 连接prompt变更信号
         self.prompt_settings_page.prompt_changed.connect(self.handle_prompt_changed)
+        
+        # 连接历史记录加载信号
+        self.history_settings_page.load_history_requested.connect(self.handle_load_history)
 
     def load_user_settings(self):
         settings = load_settings()
@@ -239,3 +246,23 @@ class SettingWindow(QDialog):
         model_params_settings = self.model_params_settings_page.get_model_params_settings()
         self.llm_client.set_model_params(model_params_settings)
         self.save_user_settings()
+
+    def handle_load_history(self, file_path):
+        """处理历史记录加载请求"""
+        try:
+            # 创建临时的ChatHistory对象
+            chat_history = ChatHistory()
+            history = chat_history.load_history(file_path)
+            
+            if history:
+                # 加载历史记录到聊天窗口
+                self.floating_ball.chat_window.load_chat_history(history)
+                QMessageBox.information(self, "加载成功", "历史记录已成功加载")
+                # 显示聊天窗口
+                self.floating_ball.chat_window.show()
+                # 关闭设置窗口
+                self.accept()
+            else:
+                QMessageBox.warning(self, "加载失败", "无法加载历史记录文件，格式可能不正确")
+        except Exception as e:
+            QMessageBox.warning(self, "加载失败", f"加载历史记录时出错：{str(e)}")

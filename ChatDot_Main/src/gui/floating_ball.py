@@ -18,7 +18,6 @@ class FloatingBall(QWidget):
         
         self.ball_color = self.DEFAULT_COLOR
         self.chat_window = ChatWindow(self)  # 保存 ChatWindow 实例
-        self.setting_window = None
         self.initUI()
         self.drag_start_position = None
         self.dragging = False
@@ -177,26 +176,11 @@ class FloatingBall(QWidget):
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton and self.drag_start_position:
-            distance = math.hypot(event.pos().x() - self.drag_start_position.x(), 
-                                event.pos().y() - self.drag_start_position.y())
+            distance = math.hypot(event.pos().x() - self.drag_start_position.x(), event.pos().y() - self.drag_start_position.y())
             if distance > FloatingBall.DRAG_THRESHOLD:
                 self.dragging = True
-                new_pos = self.mapToGlobal(event.pos() - self.drag_start_position)
-                self.move(new_pos)
-                
-                # 更新聊天窗口位置
-                if self.chat_window and self.chat_window.isVisible():
-                    chat_pos = self.mapToGlobal(QPoint(0, 0))
-                    chat_x = chat_pos.x() - 350
-                    chat_y = chat_pos.y() - self.chat_window.height() - 40
-                    self.chat_window.move(chat_x, chat_y)
-                
-                # 更新设置窗口位置
-                if self.setting_window and self.setting_window.isVisible():
-                    ball_pos = self.mapToGlobal(QPoint(0, 0))
-                    settings_x = ball_pos.x() + 20
-                    settings_y = ball_pos.y() + self.height() + 20
-                    self.setting_window.move(settings_x, settings_y)
+                self.move(self.mapToGlobal(event.pos() - self.drag_start_position))
+                print("移动距离超过阈值，进入拖拽状态")
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -209,22 +193,7 @@ class FloatingBall(QWidget):
             self.drag_start_position = None
 
     def contextMenuEvent(self, event):
-        # 如果设置窗口已打开，直接关闭它而不显示右键菜单
-        if self.setting_window and self.setting_window.isVisible():
-            self.setting_window.close()
-            return
-            
         context_menu = QMenu(self)
-        
-        if self.chat_window.llm_thread and self.chat_window.llm_thread.isRunning():
-            stop_action = QAction("停止生成", self)
-            stop_action.triggered.connect(self.chat_window.stop_llm)
-            context_menu.addAction(stop_action)
-        
-        clear_action = QAction("清除上下文", self)
-        clear_action.triggered.connect(self.chat_window.clear_context)
-        context_menu.addAction(clear_action)
-        context_menu.addSeparator()
         setting_action = QAction("设置", self)
         setting_action.triggered.connect(self.openSettingWindow)
         context_menu.addAction(setting_action)
@@ -234,30 +203,27 @@ class FloatingBall(QWidget):
         context_menu.exec_(event.globalPos())
 
     def openSettingWindow(self):
-        setting_window = SettingWindow(self)
-        # 设置为非模态窗口
-        setting_window.setWindowModality(Qt.NonModal)
+        setting_dialog = SettingWindow(self)
         ball_pos = self.mapToGlobal(QPoint(0, 0))
         settings_window_x = ball_pos.x() + 20
         settings_window_y = ball_pos.y() + self.height() + 20
-        setting_window.move(settings_window_x, settings_window_y)
-        self.setting_window = setting_window
-        setting_window.show()
-        
-    def closeSettingWindow(self):
-        if self.setting_window and self.setting_window.isVisible():
-            self.setting_window.close()
+        setting_dialog.move(settings_window_x, settings_window_y)
+        # 保持为父窗口对象的引用，防止被垃圾回收导致窗口闪退
+        self.setting_dialog = setting_dialog
+        setting_dialog.show()
 
     def toggleChatWindow(self):
+        
         if self.chat_window.isVisible():
             self.chat_window.hide()
         else:
-            ball_pos = self.mapToGlobal(QPoint(0, 0))
-            chat_x = ball_pos.x() - 350
-            chat_y = ball_pos.y() - self.chat_window.height() - 40
-            self.chat_window.move(chat_x, chat_y)
-            self.chat_window.show()
-            self.chat_window.activateWindow()
+            self.chat_window.toggleChatWindow()
+            # ball_pos = self.mapToGlobal(QPoint(0, 0))
+            # chat_window_x = ball_pos.x() - 350
+            # chat_window_y = ball_pos.y() - self.chat_window.height() - 40
+            # self.chat_window.move(chat_window_x, chat_window_y)
+            # self.chat_window.show()
+            # self.chat_window.activateWindow()
 
     def resetToDefaults(self):
         """恢复默认设置"""
@@ -265,5 +231,5 @@ class FloatingBall(QWidget):
         self.setColor(self.DEFAULT_COLOR)
         self.setWindowOpacity(self.DEFAULT_OPACITY)
         # 通知设置页面更新显示
-        if hasattr(self, 'setting_window'):
-            self.setting_window.floating_ball_settings_page.updateSettingsDisplay()
+        if hasattr(self, 'setting_dialog'):
+            self.setting_dialog.floating_ball_settings_page.updateSettingsDisplay()
