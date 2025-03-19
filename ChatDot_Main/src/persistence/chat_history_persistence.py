@@ -19,12 +19,12 @@ class ChatHistory:
         counter = 1
         
         # 使用日期和时间作为文件名的一部分
-        self.filepath = os.path.join(directory, f"history_{current_date}_{current_time}_{counter}.json")
+        self.filepath = os.path.join(directory, f"history_{current_time}_{current_date}_{counter}.json")
         
         # 以防万一同一秒内创建多个文件
         while os.path.exists(self.filepath):
             counter += 1
-            new_name = f"history_{current_date}_{current_time}_{counter}.json"
+            new_name = f"history_{current_time}_{current_date}_{counter}.json"
             self.filepath = os.path.join(directory, new_name)
 
 
