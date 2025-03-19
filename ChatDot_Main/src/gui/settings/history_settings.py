@@ -9,6 +9,7 @@ class HistoryFileItem(QFrame):
     """历史文件项组件，显示一个历史文件及其操作按钮"""
     delete_requested = pyqtSignal(str)  # 请求删除文件的信号
     load_requested = pyqtSignal(str)    # 请求加载文件的信号
+    copy_requested = pyqtSignal(str)    # 请求复制文件的信号
     
     def __init__(self, file_path, file_name, parent=None):
         super().__init__(parent)
@@ -29,13 +30,19 @@ class HistoryFileItem(QFrame):
         
         # 加载按钮
         self.load_btn = QPushButton("载入")
-        self.load_btn.setStyleSheet("QPushButton { min-width: 60px; }")
+        self.load_btn.setStyleSheet("QPushButton { min-width: 30px; }")
         self.load_btn.clicked.connect(self.emit_load_signal)
         layout.addWidget(self.load_btn)
         
+        # 复制按钮
+        self.copy_btn = QPushButton("复制")
+        self.copy_btn.setStyleSheet("QPushButton { min-width: 30px; }")
+        self.copy_btn.clicked.connect(self.emit_copy_signal)
+        layout.addWidget(self.copy_btn)
+        
         # 删除按钮
         self.delete_btn = QPushButton("删除")
-        self.delete_btn.setStyleSheet("QPushButton { min-width: 60px; }")
+        self.delete_btn.setStyleSheet("QPushButton { min-width: 30px; }")
         self.delete_btn.clicked.connect(self.emit_delete_signal)
         layout.addWidget(self.delete_btn)
         
@@ -46,6 +53,9 @@ class HistoryFileItem(QFrame):
     
     def emit_load_signal(self):
         self.load_requested.emit(self.file_path)
+        
+    def emit_copy_signal(self):
+        self.copy_requested.emit(self.file_path)
 
 class HistorySettingsPage(QWidget):
     """历史记录设置页面，显示和管理聊天历史文件"""
@@ -108,6 +118,7 @@ class HistorySettingsPage(QWidget):
             file_item = HistoryFileItem(file_path, file_name)
             file_item.delete_requested.connect(self.delete_history_file)
             file_item.load_requested.connect(self.load_history_file)
+            file_item.copy_requested.connect(self.copy_history_file)
             self.scroll_layout.addWidget(file_item)
     
     def delete_history_file(self, file_path):
@@ -127,6 +138,27 @@ class HistorySettingsPage(QWidget):
                 self.load_history_files()  # 刷新列表
             except Exception as e:
                 QMessageBox.warning(self, "删除失败", f"删除文件时出错：{str(e)}")
+    
+    def copy_history_file(self, file_path):
+        """复制历史记录文件"""
+        try:
+            # 获取原文件名和路径信息
+            dir_name = os.path.dirname(file_path)
+            file_name = os.path.basename(file_path)
+            
+            # 创建新的文件名 (copy)原文件名
+            new_file_name = "(copy)" + file_name
+            new_file_path = os.path.join(dir_name, new_file_name)
+            
+            # 复制文件
+            shutil.copy2(file_path, new_file_path)
+            QMessageBox.information(self, "复制成功", f"已创建副本: {new_file_name}")
+            
+            # 刷新列表
+            self.load_history_files()
+            
+        except Exception as e:
+            QMessageBox.warning(self, "复制失败", f"复制文件时出错：{str(e)}")
     
     def load_history_file(self, file_path):
         """加载历史记录文件"""
