@@ -1,14 +1,22 @@
 import json
 import os
+from datetime import datetime
 
 class ChatHistory:
     def __init__(self, directory="ChatDot_Main\history"):
         self.filepath = directory
+        # 获取当前时间并格式化日期和时间
+        current_date = datetime.now().strftime("%Y%m%d")
+        current_time = datetime.now().strftime("%H%M%S")
         counter = 1
-        self.filepath = os.path.join(directory, f"history_{counter}.json")
+        
+        # 使用日期和时间作为文件名的一部分
+        self.filepath = os.path.join(directory, f"history_{current_date}_{current_time}_{counter}.json")
+        
+        # 以防万一同一秒内创建多个文件
         while os.path.exists(self.filepath):
             counter += 1
-            new_name = f"history_{counter}.json"
+            new_name = f"history_{current_date}_{current_time}_{counter}.json"
             self.filepath = os.path.join(directory, new_name)
 
 
