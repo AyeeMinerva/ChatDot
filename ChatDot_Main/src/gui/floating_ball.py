@@ -171,7 +171,7 @@ class FloatingBall(QWidget):
         if event.button() == Qt.LeftButton:
             self.drag_start_position = event.pos()
             self.dragging = False
-            print("左键按下 - 准备拖拽或点击")
+            #print("左键按下 - 准备拖拽或点击")
         elif event.button() == Qt.RightButton:
             self.contextMenuEvent(event)
 
@@ -201,10 +201,11 @@ class FloatingBall(QWidget):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             if not self.dragging:
-                print("左键释放 - 打开/显示聊天窗口 (点击)")
+                #print("左键释放 - 打开/显示聊天窗口 (点击)")
                 self.toggleChatWindow()
             else:
-                print("左键释放 - 结束拖拽")
+                #print("左键释放 - 结束拖拽")
+                pass
             self.dragging = False
             self.drag_start_position = None
 
