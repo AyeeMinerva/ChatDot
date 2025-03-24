@@ -1,4 +1,4 @@
-from core.chat.context_handle import BaseContextHandler
+from chat.context_handle.providers.base import BaseContextHandler
 from typing import List, Dict, Tuple
 
 class ContextHandler(BaseContextHandler):

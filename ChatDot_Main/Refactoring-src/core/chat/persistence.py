@@ -1,5 +1,5 @@
 from typing import List, Dict
-from core.global_managers.persistence_manager import PersistenceManager
+from global_managers.persistence_manager import PersistenceManager
 import os
 import json
 from datetime import datetime

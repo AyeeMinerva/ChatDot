@@ -1,4 +1,4 @@
-from core.global_managers.settings_manager import SettingsManager
+from global_managers.settings_manager import SettingsManager
 
 DEFAULT_LLM_SETTINGS = {
     "api_keys": [],

@@ -1,4 +1,4 @@
-from core.global_managers.persistence_manager import PersistenceManager
+from global_managers.persistence_manager import PersistenceManager
 
 class LLMPersistence:
     def __init__(self):

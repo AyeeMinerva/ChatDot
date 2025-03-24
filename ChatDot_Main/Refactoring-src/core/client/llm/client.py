@@ -1,3 +1,4 @@
+import warnings
 import openai
 from collections import deque
 from threading import Lock
@@ -41,46 +42,52 @@ class LLMClient:
         self.model_params = {}
         self.lock = Lock()  # 用于线程安全的API Key轮询
 
-    def set_api_config(self, api_keys, api_base, test_connection=True):
-            """
-            设置API配置
-            @param api_keys: API密钥列表
-            @param api_base: API基础URL
-            @param test_connection: 是否测试连接，默认为True
-            """
-            if not api_keys or not api_base:
-                raise ValueError("API Keys 和 API Base URL 不能为空。")
-            if not isinstance(api_keys, list):
-                raise ValueError("API Keys 必须是列表类型。")
+    def set_api_config(self, api_keys, api_base, test_connection=False):
+        """
+        设置API配置
+        @param api_keys: API密钥列表
+        @param api_base: API基础URL
+        @param test_connection: 是否测试连接，默认为False
+        """
+        # 检查并发出警告
+        if not api_keys or not api_base:
+            warnings.warn("API Keys 或 API Base URL 为空，将使用默认OpenAI配置。注意：需要设置有效的API密钥才能正常使用。")
+            api_keys = api_keys or [""]  # 使用空字符串作为默认key
+            api_base = api_base or "https://api.openai.com/v1"
+
+        # 确保api_keys是列表类型
+        if not isinstance(api_keys, list):
+            warnings.warn("API Keys 不是列表类型，已自动转换为列表。")
+            api_keys = [api_keys]
             
-            self.api_keys = deque(api_keys)
-            self.api_base = api_base
+        self.api_keys = deque(api_keys)
+        self.api_base = api_base
             
-            if test_connection:
-                # 测试所有API Keys
-                valid_keys = []
-                for key in api_keys:
-                    try:
-                        test_client = openai.OpenAI(
-                            api_key=key,
-                            base_url=api_base
-                        )
-                        test_client.models.list()
-                        valid_keys.append(key)
-                    except Exception as e:
-                        print(f"API Key {key[:8]}... 测试失败(llm_client.set_api_config): {e}")
-                
-                #去除apikeys筛选逻辑
-                # if not valid_keys:
-                #     self.client = None
-                #     raise RuntimeError("没有有效的API Keys")
-                # self.api_keys = deque(valid_keys)
+        if test_connection:
+            # 测试所有API Keys
+            valid_keys = []
+            for key in api_keys:
+                try:
+                    test_client = openai.OpenAI(
+                        api_key=key,
+                        base_url=api_base
+                    )
+                    test_client.models.list()
+                    valid_keys.append(key)
+                except Exception as e:
+                    print(f"API Key {key[:8]}... 测试失败(llm_client.set_api_config): {e}")
             
-            # 不管是否测试，都设置第一个key为当前client
-            self.client = openai.OpenAI(
-                api_key=self.api_keys[0],
-                base_url=api_base
-            )
+            #去除apikeys筛选逻辑
+            # if not valid_keys:
+            #     self.client = None
+            #     raise RuntimeError("没有有效的API Keys")
+            # self.api_keys = deque(valid_keys)
+        
+        # 不管是否测试，都设置第一个key为当前client
+        self.client = openai.OpenAI(
+            api_key=self.api_keys[0],
+            base_url=api_base
+        )
         
     def get_next_api_key(self):
         with self.lock:
@@ -164,4 +171,4 @@ class LLMClient:
             model_names = [model.id for model in model_list.data]
             return model_names
         except Exception as e:
-            raise RuntimeError(f"获取模型列表失败: {e}")
+            raise RuntimeError(f"获取模型列表失败: {e} (url: {self.api_base})")
