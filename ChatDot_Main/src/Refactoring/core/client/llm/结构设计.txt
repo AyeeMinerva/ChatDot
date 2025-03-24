@@ -1,0 +1,5 @@
+client.py：负责与 LLM API 的直接通信逻辑。
+persistence.py：负责 LLM 模块的持久化逻辑（如保存和加载配置）。
+settings.py：负责 LLM 模块的设置管理。
+worker.py：负责异步任务的处理（如流式输出）。
+service.py：作为 LLM 模块的统一入口，协调其他模块并对外提供接口。
