@@ -140,9 +140,10 @@ class ConsoleInterface:
         print("1. 设置API密钥")
         print("2. 设置API基础URL")
         print("3. 设置默认模型")
-        print("4. 返回")
+        print("4. 管理模型参数")
+        print("5. 返回")
         
-        choice = input("请选择 (1-4): ")
+        choice = input("请选择 (1-5): ")
         if choice == "1":
             key = input("请输入API密钥: ").strip()
             llm_service.update_setting("api_keys", [key])
@@ -152,6 +153,105 @@ class ConsoleInterface:
         elif choice == "3":
             model = input("请输入模型名称: ").strip()
             llm_service.update_setting("model_name", model)
+        elif choice == "4":
+            self._manage_model_params(llm_service)
+    
+    def _manage_model_params(self, llm_service):
+        """管理模型参数"""
+        while True:
+            print("\n模型参数管理")
+            print("当前参数:")
+            current_params = llm_service.settings.get_setting("model_params")
+            for key, value in current_params.items():
+                print(f"- {key}: {value}")
+            
+            print("\n操作选项:")
+            print("1. 修改参数")
+            print("2. 添加新参数")
+            print("3. 删除参数")
+            print("4. 返回主菜单")
+            
+            choice = input("\n请选择操作 (1-4): ")
+            
+            if choice == "1":
+                if not current_params:
+                    print("当前没有可修改的参数")
+                    continue
+                    
+                print("\n可修改的参数:")
+                for i, (key, value) in enumerate(current_params.items(), 1):
+                    print(f"{i}. {key}: {value}")
+                
+                try:
+                    idx = int(input("\n请选择要修改的参数编号: ")) - 1
+                    if 0 <= idx < len(current_params):
+                        key = list(current_params.keys())[idx]
+                        current_type = type(current_params[key])
+                        new_value = input(f"请输入新的{key}值: ")
+                        
+                        # 类型转换
+                        if current_type == bool:
+                            new_value = new_value.lower() in ('true', 'yes', 'y', '1')
+                        elif current_type == int:
+                            new_value = int(new_value)
+                        elif current_type == float:
+                            new_value = float(new_value)
+                        
+                        current_params[key] = new_value
+                        llm_service.update_setting("model_params", current_params)
+                        print(f"参数 {key} 已更新")
+                except (ValueError, IndexError):
+                    print("无效的选择")
+                    
+            elif choice == "2":
+                key = input("请输入新参数名称: ").strip()
+                if key in current_params:
+                    print("参数已存在")
+                    continue
+                    
+                print("\n选择参数类型:")
+                print("1. 字符串")
+                print("2. 整数")
+                print("3. 浮点数")
+                print("4. 布尔值")
+                
+                type_choice = input("请选择参数类型 (1-4): ")
+                try:
+                    value = input("请输入参数值: ")
+                    if type_choice == "2":
+                        value = int(value)
+                    elif type_choice == "3":
+                        value = float(value)
+                    elif type_choice == "4":
+                        value = value.lower() in ('true', 'yes', 'y', '1')
+                        
+                    current_params[key] = value
+                    llm_service.update_setting("model_params", current_params)
+                    print(f"参数 {key} 已添加")
+                except ValueError:
+                    print("无效的参数值")
+                    
+            elif choice == "3":
+                if not current_params:
+                    print("当前没有可删除的参数")
+                    continue
+                    
+                print("\n可删除的参数:")
+                for i, key in enumerate(current_params.keys(), 1):
+                    print(f"{i}. {key}")
+                    
+                try:
+                    idx = int(input("\n请选择要删除的参数编号: ")) - 1
+                    if 0 <= idx < len(current_params):
+                        key = list(current_params.keys())[idx]
+                        del current_params[key]
+                        llm_service.update_setting("model_params", current_params)
+                        print(f"参数 {key} 已删除")
+                except (ValueError, IndexError):
+                    print("无效的选择")
+                    
+            elif choice == "4":
+                break
 
 if __name__ == "__main__":
     interface = ConsoleInterface()

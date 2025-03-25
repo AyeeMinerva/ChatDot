@@ -6,7 +6,7 @@ DEFAULT_LLM_SETTINGS = {
     "model_name": "gpt-3.5-turbo",
     "model_params": {
         "temperature": 0.7,
-        "max_tokens": 200,
+        "max_tokens": 2000,
         "stream": True
     }
 }

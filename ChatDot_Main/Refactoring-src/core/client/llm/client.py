@@ -140,10 +140,13 @@ class LLMClient:
         )
         stream = params.get('stream', False)
         print(f"--- LLM Request Parameters ---")
+        print(f"Bae URL: {self.api_base}")
+        print(f"API Key: {api_key}")
         print(f"Model Name: {final_model_name}")
         print(f"Model Params: {params}")
         #print(f"Stream: {stream}") #stream参数现已整合进params
         print(f"Messages: {messages}")
+        print("-------------------------------")
 
         try:
             response = self.client.chat.completions.create(
