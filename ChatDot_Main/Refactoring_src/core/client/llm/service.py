@@ -63,8 +63,9 @@ class LLMService:
             model_params=model_params
         )
         worker.start()
-        worker.join()  # 等待响应完成
-        return iter(worker.get_response())
+        #worker.join()  # 等待响应完成（此操作会导致阻塞）
+        # 返回一个实时的响应迭代器
+        return worker.get_response()
     
     def fetch_models(self):
         """获取可用模型列表"""
