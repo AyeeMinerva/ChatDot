@@ -5,6 +5,7 @@ from PyQt5.QtCore import Qt, QPoint, QRectF
 
 from gui.setting_window import SettingWindow
 from gui.chat_window import ChatWindow
+from core.bootstrap import Bootstrap
 from core.global_managers.service_manager import ServiceManager  # 导入服务管理器
 
 class FloatingBall(QWidget):
@@ -18,7 +19,11 @@ class FloatingBall(QWidget):
         self.DEFAULT_OPACITY = 0.99
         
         self.ball_color = self.DEFAULT_COLOR
-        self.service_manager = ServiceManager()  # 获取服务管理器实例
+
+        self.bootstrap = Bootstrap()
+        self.bootstrap.initialize()
+        self.service_manager = self.bootstrap.service_manager
+
         self.chat_window = ChatWindow(self)  # 保存 ChatWindow 实例
         self.setting_window = None
         self.initUI()
@@ -273,6 +278,10 @@ class FloatingBall(QWidget):
 
     def clear_context(self):
         """调用核心服务清除上下文"""
-        chat_service = self.service_manager.get_service("chat_service")
-        chat_service.clear_context()
-        self.chat_window.clear_chat_display()  # 清除聊天窗口显示
+        try:
+            chat_service = self.service_manager.get_service("chat_service")
+            chat_service.clear_context()
+            # 修改这行，因为 clear_chat_display 方法不存在
+            self.chat_window.clear_context()  # 使用 ChatWindow 中已有的 clear_context 方法
+        except Exception as e:
+            print(f"清除上下文时发生错误: {str(e)}")
