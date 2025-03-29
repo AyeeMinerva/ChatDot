@@ -32,13 +32,13 @@ class SettingWindow(QDialog):
         super().__init__()
         self.floating_ball = floating_ball
         self.service_manager = None  # 初始化为 None
+        self._init_services()
         self.llm_connection_settings_page = LLMConnectionSettingsPage()
         self.floating_ball_settings_page = FloatingBallSettingsPage(floating_ball)
         self.model_params_settings_page = ModelParamsSettingsPage()
-        self.prompt_settings_page = PromptSettingsPage()
+        self.prompt_settings_page = PromptSettingsPage(self.service_manager)
         self.history_settings_page = HistorySettingsPage()
         self.initUI()
-        self._init_services()
         self.load_user_settings()  # 打开设置时加载用户设置
 
     def _init_services(self):
@@ -209,20 +209,26 @@ class SettingWindow(QDialog):
         self.llm_connection_settings_page.model_name_combo.addItem(f"API 错误: {error_message}")
         self.llm_connection_settings_page.model_name_combo.setEnabled(False)
 
-    def handle_prompt_changed(self, handler):
-        """当选择新的prompt处理器时
-
-        Args:
-            handler: 处理器对象或处理器文件名
-        """
-        context_handle_service = self.service_manager.get_service("context_handle_service")
-
-        # 已经是对象类型，直接设置
-        self.floating_ball.chat_window.switch_handler(handler)
-        # 保存当前处理器
-        context_handle_service.manager.set_handler(handler.__class__.__name__)
-        # 自动保存设置
-        self.save_user_settings()
+    def handle_prompt_changed(self, handler_id):
+        """当选择新的prompt处理器时"""
+        try:
+            context_service = self.service_manager.get_service("context_handle_service")
+            if context_service.set_current_handler(handler_id):
+                # 获取当前处理器
+                current_handler = context_service.get_current_handler()
+                self.floating_ball.chat_window.current_handler = current_handler
+                
+                # 获取处理器名称
+                handler_name = getattr(current_handler, 'name', str(current_handler))
+                
+                # 保存设置
+                self.save_user_settings()
+                
+                QMessageBox.information(self, "成功", f"已切换到处理器: {handler_name}")
+            else:
+                QMessageBox.warning(self, "错误", f"切换处理器失败: {handler_id}")
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"切换处理器时发生错误: {str(e)}")
 
     def auto_save_settings(self):
         """自动保存设置"""
