@@ -320,13 +320,22 @@ class ChatWindow(QMainWindow):
         else:
             event.ignore()
 
-    def load_chat_history(self, history):
-        self.clear_context()
-        messages = self.chat_service.get_messages()
-        for msg in messages:
-            if msg["role"] not in ["system"]:
-                self.add_message_bubble(msg["content"], msg["role"])
-        self.scroll_to_bottom()
+    def load_chat_history(self, messages):
+        """直接加载消息列表"""
+        try:
+            # 清空显示
+            self.clear_chat_display()
+            
+            # 添加消息
+            for msg in messages:
+                if msg["role"] not in ["system"]:
+                    self.add_message_bubble(msg["content"], msg["role"])
+                    
+            # 滚动到底部
+            self.scroll_to_bottom()
+            
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"加载聊天历史失败：{str(e)}")
 
 
     def enable_send_buttons(self):
@@ -341,3 +350,40 @@ class ChatWindow(QMainWindow):
             self.llm_thread = None  # 重置 llm_thread
         self.enable_send_buttons()
         self.assistant_prefix_added = False
+
+    def update_chat_display(self, file_path):
+        """更新聊天显示"""
+        try:
+            # 先导入历史记录
+            self.chat_service.import_history(file_path)
+            
+            # 清空当前显示
+            self.clear_chat_display()
+            
+            # 加载历史消息
+            messages = self.chat_service.get_messages()
+            for message in messages:
+                if message["role"] not in ["system"]:
+                    self.add_message_bubble(message["content"], message["role"])
+                    
+            # 滚动到底部
+            self.scroll_to_bottom()
+            
+            # 显示成功消息
+            QMessageBox.information(self, "成功", "历史记录已加载")
+            
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"更新聊天显示失败：{str(e)}")
+
+    def clear_chat_display(self):
+        """清空聊天显示区域"""
+        # 使用正确的布局变量名
+        while self.messages_layout.count() > 1:  # 保留最后的 stretch
+            item = self.messages_layout.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()
+
+    def connect_history_settings(self, history_settings):
+        """连接历史设置页面的信号"""
+        self.history_settings = history_settings
+        self.history_settings.load_history_requested.connect(self.update_chat_display)
