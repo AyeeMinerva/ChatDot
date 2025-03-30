@@ -36,7 +36,7 @@ class Bootstrap:
     def _register_core_services(self):
         """注册核心服务 (只能调用一次)"""
         if self._services_registered:
-            print("服务已注册，无需重复注册")
+            print("Bootstrap: _register_core_services 服务已注册，无需重复注册")
             return
             
         # 按依赖顺序注册服务
@@ -55,7 +55,7 @@ class Bootstrap:
     def initialize(self):
         """初始化所有服务 (只能调用一次)"""
         if self._services_initialized:
-            print("服务已初始化，无需重复初始化")
+            print("Bootstrap: initialize 服务已初始化，无需重复初始化")
             return
             
         # 注册服务

@@ -18,7 +18,20 @@ class BaseContextHandler(ABC):
             - llm_messages: 发送给LLM的消息列表
         """
         pass
+    
+    @abstractmethod
+    def process_before_show(self, text: str) -> str:
+        """
+        在显示前处理接收到的完整回复文本
         
+        Args:
+            text: 接收到的完整回复文本
+            
+        Returns:
+            str: 处理后可显示的文本
+        """
+        pass
+    
     @abstractmethod
     def get_prompt_info(self) -> Dict:
         """获取当前prompt的信息"""

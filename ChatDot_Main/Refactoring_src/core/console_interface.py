@@ -1,6 +1,7 @@
 from typing import Dict, Callable
 from bootstrap import Bootstrap
 from global_managers.service_manager import ServiceManager
+import shutil
 
 class ConsoleInterface:
     """控制台交互界面"""
@@ -60,20 +61,49 @@ class ConsoleInterface:
     def chat_mode(self):
         """进入聊天模式"""
         chat_service = self.service_manager.get_service("chat_service")
-        print("\n进入聊天模式 (输入 'q' 返回主菜单)")
+        context_service = self.service_manager.get_service("context_handle_service")
+        print("\n进入聊天模式 (输入 'q' 返回主菜单，输入'open regex'启用正则表达式过滤)")
+        
+        # 默认不启用过滤
+        use_filter = False
         
         while True:
             user_input = input("\n用户: ")
             if user_input.lower() == 'q':
                 break
                 
-            print("助手: ", end='', flush=True)
+            # 检查是否切换过滤模式
+            if user_input.lower() == "open regex":
+                use_filter = not use_filter
+                mode_str = "已启用" if use_filter else "已禁用"
+                print(f"正则表达式过滤 {mode_str}")
+                continue
             
-            # 使用迭代器处理响应
             try:
-                for chunk in chat_service.send_message(user_input, is_stream=True):
-                    print(chunk, end='', flush=True)
-                print()  # 打印换行
+                if not use_filter:
+                    # 不过滤，直接流式输出
+                    response_iterator = chat_service.send_message(user_input, is_stream=True)
+                    # 等待第一个响应后再打印"助手: "
+                    first_chunk = next(response_iterator)
+                    print("助手: " + first_chunk, end='', flush=True)
+                    for chunk in response_iterator:
+                        print(chunk, end='', flush=True)
+                    print()  # 打印换行
+                else:
+                    # 启用过滤，显示处理后的完整文本
+                    accumulated_text = ""
+                    chunk_count = 0
+                    response_iterator = chat_service.send_message(user_input, is_stream=True)
+                    
+                    # 移除这里的print("助手: ")
+                    for chunk in response_iterator:
+                        accumulated_text += chunk
+                        chunk_count += 1
+                        
+                        # 处理完整文本并打印
+                        processed_text = context_service.get_current_handler().process_before_show(accumulated_text)
+                        print(f"[chunk {chunk_count}] {processed_text}")
+                        
             except Exception as e:
                 print(f"\n错误: {str(e)}")
 

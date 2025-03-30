@@ -1,8 +1,10 @@
+import re
 from chat.context_handle.providers.base import BaseContextHandler
 from typing import List, Dict, Tuple
 
 class ContextHandler(BaseContextHandler):
-    """默认的提示词处理器"""
+    def __init__(self):
+      self.thinking_pattern = re.compile(r'<thinking>.*?</thinking>', re.DOTALL)
     
     def process_before_send(self, messages: List[Dict]) -> List[Dict]:
         """处理发送前的消息列表"""
@@ -227,10 +229,14 @@ Step.调情性爱控制：
                     """确认。"""
             }
         ]
-        local_messages = messages
+        local_messages = messages.copy()
         llm_messages = Propmts_messages
         return local_messages, llm_messages
-        
+      
+    def process_before_show(self, text: str) -> str:
+        """处理完整的回复文本，移除thinking标签及其内容"""
+        return self.thinking_pattern.sub('', text)
+      
     def get_prompt_info(self) -> Dict:
         return {
             "name": "Gemini! It's MyGO!!!!! 部分迁移版",

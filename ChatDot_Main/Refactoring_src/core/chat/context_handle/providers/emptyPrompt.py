@@ -13,6 +13,9 @@ class ContextHandler(BaseContextHandler):
         llm_messages = messages.copy()
         
         return local_messages, llm_messages
+    
+    def process_before_show(self, text: str) -> str:
+        return text
         
     def get_prompt_info(self) -> Dict:
         return {

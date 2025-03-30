@@ -64,7 +64,13 @@ class ChatClient:
             finally:
                 # 在迭代完成或发生异常时添加到历史
                 if full_response:
-                    self.add_response(''.join(full_response))
+                    #添加到历史前经过处理器处理
+                    if handler:
+                        processed_response = handler.process_before_show(''.join(full_response))
+                    else:
+                        processed_response = ''.join(full_response)
+                    self.add_response(processed_response)
+                    #self.add_response(''.join(full_response))
 
         return local_messages, realtime_response()
 

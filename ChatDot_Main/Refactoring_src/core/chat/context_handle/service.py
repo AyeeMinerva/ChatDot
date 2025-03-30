@@ -27,7 +27,7 @@ class ContextHandleService:
         """获取当前处理器"""
         return self.manager.get_current_handler()
 
-    def process_messages(self, messages: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    def process_before_send(self, messages: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
             """
             处理消息
             
@@ -37,4 +37,4 @@ class ContextHandleService:
             Returns:
                 Tuple[List[Dict], List[Dict]]: (本地消息列表, 发送给LLM的消息列表)
             """
-            return self.manager.process_messages(messages)
+            return self.manager.process_before_send(messages)

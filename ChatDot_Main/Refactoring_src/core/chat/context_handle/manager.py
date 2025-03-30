@@ -83,9 +83,15 @@ class ContextHandleManager:
                 print(f"获取处理器 {name} 信息失败: {str(e)}")
         return handlers_info
 
-    def process_messages(self, messages: List[Dict]) -> List[Dict]:
-        """处理消息列表"""
-        if not self.current_handler:
-            raise RuntimeError("未设置当前处理器")
-        local_messages, llm_messages = self.current_handler.process_before_send(messages)
-        return local_messages,llm_messages
+    # def process_before_send(self, messages: List[Dict]) -> List[Dict]:
+    #     """处理消息列表"""
+    #     if not self.current_handler:
+    #         raise RuntimeError("未设置当前处理器")
+    #     local_messages, llm_messages = self.current_handler.process_before_send(messages)
+    #     return local_messages,llm_messages
+    
+    # def process_before_show(self, text: str) -> str:
+    #     """处理显示前的完整文本"""
+    #     if not self.current_handler:
+    #         return text
+    #     return self.current_handler.process_before_show(text)
