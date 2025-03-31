@@ -1,8 +1,9 @@
 from typing import Callable, Iterator, List, Dict, Optional, Tuple
-from chat.context_handle.manager import ContextHandleManager
+#from chat.context_handle.manager import ContextHandleManager
+from global_managers.service_manager import ServiceManager
 
 class ChatClient:
-    def __init__(self, llm_service=None, context_handle_service=None):
+    def __init__(self, llm_service=None, service_manager=None):
         """
         初始化聊天客户端
         
@@ -11,19 +12,16 @@ class ChatClient:
             context_handle_service: 上下文处理服务实例
         """
         self.llm_service = llm_service
-        self.context_handle_service = context_handle_service
+        self.service_manager = service_manager or ServiceManager()
+        self.context_handle_service = self.service_manager.get_service("context_handle_service")
+        self.live2d_service = self.service_manager.get_service("live2d_service")
+        self.tts_service = self.service_manager.get_service("tts_service")
         self.messages: List[Dict] = []
 
     def initialize(self):
         """初始化客户端"""
         if self.llm_service:
             self.llm_service.initialize()
-        
-        # 获取上下文处理器管理器
-        if self.context_handle_service:
-            self.context_manager = self.context_handle_service.manager
-        else:
-            self.context_manager = ContextHandleManager()
 
     def send_message(self, message: str, is_stream: bool = True) -> Tuple[List[Dict], Iterator[str]]:
         """
@@ -36,24 +34,38 @@ class ChatClient:
         Returns:
             Tuple[List[Dict], Iterator[str]]: (本地消息列表, 实时响应迭代器)
         """
+        #region 消息前处理
+        ################################
+        # 消息前处理
+        #
         # 添加用户消息到历史
         message_dict = {"role": "user", "content": message}
         self.messages.append(message_dict)
         
         # 使用上下文处理器处理消息
-        handler = self.context_manager.get_current_handler()
+        handler = self.context_handle_service.get_current_handler()
         local_messages, llm_messages = (handler.process_before_send(self.messages) 
                                       if handler else (self.messages, self.messages))
         
         if not self.llm_service:
             raise RuntimeError("LLM服务未初始化")
-            
+        #endregion 消息前处理
+        
+        #region 发送消息
+        ##############################
+        # 发送消息
+        #
         # 发送消息并获取响应迭代器
         response_iterator = self.llm_service.send_message(
             messages=llm_messages,
             model_params={"stream": is_stream}
         )
+        #endregion 发送消息
 
+        #region 接收消息及后处理(阻塞)
+        ##############################
+        # 接收消息及后处理
+        #
         # 创建实时响应迭代器
         def realtime_response():
             full_response = []
@@ -71,6 +83,25 @@ class ChatClient:
                         processed_response = ''.join(full_response)
                     self.add_response(processed_response)
                     #self.add_response(''.join(full_response))
+                    
+                    #调用live2d服务
+                    # 如果 Live2D 启用，则调用 Live2D 服务
+                    if self.live2d_service and self.live2d_service.is_live2d_enabled():
+                        print("调用 Live2D 服务...")
+                        self.live2d_service.text_to_live2d(processed_response)
+                    #调用tts服务
+                    if self.tts_service and self.tts_service.is_tts_enabled():
+                        print("调用 TTS 服务...")
+                        #self.tts_service.text_to_speech(processed_response)#调用此不会播放音频
+                        # 直接播放音频
+                        self.tts_service.play_text_to_speech(processed_response)
+                
+                        
+        #endregion 接收消息及后处理(阻塞)
+                    
+        #region 消息后处理(非阻塞)
+        #此部分不应直接使用，应当将非阻塞操作放置到对应的service中,时间较长的操作应该自行实现异步处理
+        #endregion 消息后处理(非阻塞)
 
         return local_messages, realtime_response()
 

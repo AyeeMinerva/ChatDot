@@ -10,7 +10,7 @@ class LLMService:
     def __init__(self):
         #print(f"LLMService: 创建实例 id={id(self)}")
         self._initialized = False  # 初始化标记
-        self.service_manager = ServiceManager()
+        #self.service_manager = ServiceManager()
         self.settings = LLMSettings()
         self.persistence = LLMPersistence()
         self.client = LLMClient()

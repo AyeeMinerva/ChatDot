@@ -3,6 +3,8 @@ from global_managers.service_manager import ServiceManager
 from chat.service import ChatService
 from chat.context_handle.service import ContextHandleService
 from client.llm.service import LLMService
+from live2d.service import Live2DService
+from tts.service import TTSService
 
 class Bootstrap:
     """
@@ -41,6 +43,9 @@ class Bootstrap:
             
         # 按依赖顺序注册服务
         self._service_registry.extend([
+            ("live2d_service", Live2DService),       # Live2D服务
+            ("tts_service", TTSService),                # TTS服务
+            
             ("llm_service", LLMService),             # LLM服务
             ("context_handle_service", ContextHandleService),  # 上下文处理服务
             ("chat_service", ChatService),           # 聊天服务

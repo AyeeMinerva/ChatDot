@@ -15,10 +15,9 @@ class ChatService:
         """初始化服务"""
         # 获取依赖的服务
         llm_service = self.service_manager.get_service("llm_service")
-        context_handle_service = self.service_manager.get_service("context_handle_service")
         
         # 初始化客户端
-        self.client = ChatClient(llm_service, context_handle_service)
+        self.client = ChatClient(llm_service, self.service_manager)
         self.client.initialize()
         
         # 加载历史记录

@@ -19,6 +19,8 @@ class ConsoleInterface:
             'import': self.import_history,
             'models': self.list_models,
             'config': self.configure_llm,
+            'live2d': self.configure_live2d,
+            'tts': self.configure_tts,
             'exit': lambda: print("退出程序...")
         }
 
@@ -56,8 +58,10 @@ class ConsoleInterface:
         print("import  - 导入聊天历史")
         print("models  - 显示可用的LLM模型")
         print("config  - 配置LLM服务")
+        print("live2d  - 配置Live2D服务")
+        print("tts     - 配置TTS服务")
         print("exit    - 退出程序")
-
+    
     def chat_mode(self):
         """进入聊天模式"""
         chat_service = self.service_manager.get_service("chat_service")
@@ -282,6 +286,157 @@ class ConsoleInterface:
                     
             elif choice == "4":
                 break
+
+
+    #region 配置 Live2D 服务
+    def configure_live2d(self):
+        """配置 Live2D 服务"""
+        live2d_service = self.service_manager.get_service("live2d_service")
+        
+        print("\nLive2D 配置:")
+        print("1. 启用/禁用 Live2D")
+        print("2. 设置 Live2D URL")
+        print("3. 返回主菜单")
+        
+        choice = input("请选择 (1-3): ").strip()
+        if choice == "1":
+            current_status = live2d_service.settings.get_setting("initialize")
+            new_status = not current_status
+            live2d_service.update_setting("initialize", new_status)
+            status_str = "启用" if new_status else "禁用"
+            print(f"Live2D 已{status_str}")
+        elif choice == "2":
+            new_url = input("请输入新的 Live2D URL: ").strip()
+            live2d_service.update_setting("url", new_url)
+            print(f"Live2D URL 已更新为: {new_url}")
+        elif choice == "3":
+            return
+        else:
+            print("无效的选择，请重试")
+    #endregion
+    
+    #region 配置 TTS 服务
+    def configure_tts(self):
+        """配置 TTS 服务"""
+        tts_service = self.service_manager.get_service("tts_service")
+        
+        while True:
+            print("\nTTS 配置:")
+            print("1. 启用/禁用 TTS")
+            print("2. 设置 TTS URL")
+            print("3. 配置流式模式")
+            print("4. 配置语音参数")
+            print("5. 测试 TTS")
+            print("6. 返回主菜单")
+            
+            choice = input("请选择 (1-6): ").strip()
+            
+            if choice == "1":
+                current_status = tts_service.settings.get_setting("initialize")
+                new_status = not current_status
+                tts_service.update_setting("initialize", new_status)
+                status_str = "启用" if new_status else "禁用"
+                print(f"TTS 已{status_str}")
+                
+            elif choice == "2":
+                new_url = input("请输入新的 TTS URL (例如: http://183.175.12.68:9880): ").strip()
+                tts_service.update_setting("url", new_url)
+                print(f"TTS URL 已更新为: {new_url}")
+                
+            elif choice == "3":
+                current_mode = tts_service.settings.get_setting("streaming_mode")
+                new_mode = not current_mode
+                mode_str = "启用" if new_mode else "禁用"
+                tts_service.update_setting("streaming_mode", new_mode)
+                print(f"流式模式已{mode_str}")
+                
+            elif choice == "4":
+                self._configure_tts_params(tts_service)
+                
+            elif choice == "5":
+                self._test_tts(tts_service)
+                
+            elif choice == "6":
+                break
+                
+            else:
+                print("无效的选择，请重试")
+
+    def _configure_tts_params(self, tts_service):
+        """配置 TTS 详细参数"""
+        print("\nTTS 参数配置:")
+        print("1. 设置文本语言")
+        print("2. 设置参考音频路径")
+        print("3. 设置提示语言")
+        print("4. 设置提示文本")
+        print("5. 设置文本分割方法")
+        print("6. 设置批处理大小")
+        print("7. 设置媒体类型")
+        print("8. 返回")
+        
+        choice = input("请选择 (1-8): ").strip()
+        
+        if choice == "1":
+            current = tts_service.settings.get_setting("text_lang")
+            new_value = input(f"请输入文本语言 (当前: {current}): ").strip() or current
+            tts_service.update_setting("text_lang", new_value)
+            
+        elif choice == "2":
+            current = tts_service.settings.get_setting("ref_audio_path")
+            new_value = input(f"请输入参考音频路径 (当前: {current}): ").strip() or current
+            tts_service.update_setting("ref_audio_path", new_value)
+            
+        elif choice == "3":
+            current = tts_service.settings.get_setting("prompt_lang")
+            new_value = input(f"请输入提示语言 (当前: {current}): ").strip() or current
+            tts_service.update_setting("prompt_lang", new_value)
+            
+        elif choice == "4":
+            current = tts_service.settings.get_setting("prompt_text")
+            new_value = input(f"请输入提示文本 (当前: {current}): ").strip() or current
+            tts_service.update_setting("prompt_text", new_value)
+            
+        elif choice == "5":
+            current = tts_service.settings.get_setting("text_split_method")
+            new_value = input(f"请输入文本分割方法 (当前: {current}): ").strip() or current
+            tts_service.update_setting("text_split_method", new_value)
+            
+        elif choice == "6":
+            current = tts_service.settings.get_setting("batch_size")
+            try:
+                new_value = int(input(f"请输入批处理大小 (当前: {current}): ").strip() or current)
+                tts_service.update_setting("batch_size", new_value)
+            except ValueError:
+                print("输入无效，需要整数值")
+            
+        elif choice == "7":
+            current = tts_service.settings.get_setting("media_type")
+            new_value = input(f"请输入媒体类型 (当前: {current}): ").strip() or current
+            tts_service.update_setting("media_type", new_value)
+            
+        elif choice == "8":
+            return
+        else:
+            print("无效的选择")
+
+    def _test_tts(self, tts_service):
+        """测试 TTS 功能"""
+        if not tts_service.is_tts_enabled():
+            print("TTS 服务未启用，请先启用")
+            return
+            
+        test_text = input("请输入要合成的文本 (默认: 这是一个TTS测试): ").strip()
+        if not test_text:
+            test_text = "这是一个TTS测试"
+        
+        print(f"正在合成文本: {test_text}")
+        try:
+            tts_service.play_text_to_speech(test_text)
+            print("音频播放完成")
+        except Exception as e:
+            print(f"TTS 测试失败: {e}")
+    #endregion
+
 
 if __name__ == "__main__":
     interface = ConsoleInterface()
