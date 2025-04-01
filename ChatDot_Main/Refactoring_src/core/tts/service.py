@@ -94,6 +94,36 @@ class TTSService:
             return {"error": f"切换Sovits模型失败: {result}"}
         except Exception as e:
             return {"error": f"切换Sovits模型时发生错误: {str(e)}"}
+        
+    def switch_preset(self, preset_id):
+        """
+        切换预设，包括切换模型和更新设置
+        
+        Args:
+            preset_id: 预设ID
+            
+        Returns:
+            成功返回True，失败返回包含错误信息的字典
+        """
+        preset = self.settings.get_preset(preset_id)
+        if not preset:
+            return {"error": "预设不存在"}
+
+        # 1. 切换 GPT 模型
+        gpt_result = self.switch_gpt_model(preset.get("gpt_weights_path"))
+        if isinstance(gpt_result, dict) and "error" in gpt_result:
+            return gpt_result
+
+        # 2. 切换 Sovits 模型
+        sovits_result = self.switch_sovits_model(preset.get("sovits_weights_path"))
+        if isinstance(sovits_result, dict) and "error" in sovits_result:
+            return sovits_result
+
+        # 3. 更新设置
+        if not self.settings.switch_preset(preset_id):
+            return {"error": "更新预设设置失败"}
+
+        return True
 
     def text_to_speech(self, text: str):
         """

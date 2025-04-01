@@ -326,10 +326,11 @@ class ConsoleInterface:
             print("2. 设置 TTS URL")
             print("3. 配置流式模式")
             print("4. 配置语音参数")
-            print("5. 测试 TTS")
-            print("6. 返回主菜单")
+            print("5. 管理预设角色")
+            print("6. 测试 TTS")
+            print("7. 返回主菜单")
             
-            choice = input("请选择 (1-6): ").strip()
+            choice = input("请选择 (1-7): ").strip()
             
             if choice == "1":
                 current_status = tts_service.settings.get_setting("initialize")
@@ -354,9 +355,12 @@ class ConsoleInterface:
                 self._configure_tts_params(tts_service)
                 
             elif choice == "5":
-                self._test_tts(tts_service)
+                self._manage_tts_presets(tts_service)
                 
             elif choice == "6":
+                self._test_tts(tts_service)
+                
+            elif choice == "7":
                 break
                 
             else:
@@ -441,6 +445,85 @@ class ConsoleInterface:
             print(f"TTS 测试失败: {e}")
     #endregion
 
+
+    def _manage_tts_presets(self, tts_service):
+        """管理 TTS 预设角色"""
+        while True:
+            presets = tts_service.settings.get_all_presets()
+            current_preset = tts_service.settings.get_setting("current_preset")
+            
+            print("\n预设角色管理")
+            print(f"当前使用的预设: {current_preset}")
+            print("\n可用的预设角色:")
+            for preset_id, preset_data in presets.items():
+                print(f"- {preset_id}: {preset_data['name']}")
+            
+            print("\n操作选项:")
+            print("1. 切换预设")
+            print("2. 查看预设详情")
+            print("3. 添加新预设")
+            print("4. 删除预设")
+            print("5. 返回")
+            
+            choice = input("\n请选择操作 (1-5): ")
+            
+            if choice == "1":
+                preset_id = input("请输入要切换的预设ID: ").strip()
+                result = tts_service.switch_preset(preset_id)  # 使用 tts_service 的方法
+                if isinstance(result, dict) and "error" in result:
+                    print(result["error"])
+                else:
+                    print(f"已切换到预设: {preset_id}")
+                    
+            elif choice == "2":
+                preset_id = input("请输入要查看的预设ID: ").strip()
+                preset = tts_service.settings.get_preset(preset_id)
+                if preset:
+                    print(f"\n预设 '{preset_id}' 的详细信息:")
+                    for key, value in preset.items():
+                        print(f"{key}: {value}")
+                else:
+                    print("预设不存在")
+                    
+            elif choice == "3":
+                preset_id = input("请输入新预设ID (仅允许英文和数字): ").strip()
+                if preset_id in presets:
+                    print("预设ID已存在")
+                    continue
+                    
+                print("\n请输入预设信息:")
+                new_preset = {
+                    "name": input("角色名称: ").strip(),
+                    "ref_audio_path": input("参考音频路径: ").strip(),
+                    "prompt_text": input("提示文本: ").strip(),
+                    "text_lang": input("文本语言 (如 zh): ").strip(),
+                    "prompt_lang": input("提示语言 (如 zh): ").strip(),
+                    "gpt_weights_path": input("GPT模型权重路径: ").strip(),
+                    "sovits_weights_path": input("Sovits模型权重路径: ").strip()
+                }
+                
+                if all(new_preset.values()):
+                    if tts_service.settings.add_preset(preset_id, new_preset):
+                        print(f"预设 '{preset_id}' 添加成功")
+                    else:
+                        print("添加预设失败")
+                else:
+                    print("所有字段都必须填写")
+                    
+            elif choice == "4":
+                preset_id = input("请输入要删除的预设ID: ").strip()
+                if preset_id == current_preset:
+                    print("不能删除当前正在使用的预设")
+                elif tts_service.settings.remove_preset(preset_id):
+                    print(f"预设 '{preset_id}' 已删除")
+                else:
+                    print("删除预设失败")
+                    
+            elif choice == "5":
+                break
+            
+            else:
+                print("无效的选择，请重试")
 
 if __name__ == "__main__":
     interface = ConsoleInterface()
