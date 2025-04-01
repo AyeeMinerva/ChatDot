@@ -127,7 +127,6 @@ def tts_inference_post(text, text_lang, ref_audio_path, prompt_lang, prompt_text
             return {"error": "API返回非JSON格式的错误信息", "text": response.text}
 
 # 示例调用
-
 #GET请求示例
 get_audio_data = tts_inference_get(
     text=input("请输入文本："),

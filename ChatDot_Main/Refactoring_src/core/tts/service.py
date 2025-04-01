@@ -94,36 +94,88 @@ class TTSService:
             return {"error": f"切换Sovits模型失败: {result}"}
         except Exception as e:
             return {"error": f"切换Sovits模型时发生错误: {str(e)}"}
-        
-    def switch_preset(self, preset_id):
+    
+    #region 预设管理
+    def get_preset(self, preset_id=None):
+        """获取预设配置"""
+        if preset_id is None:
+            preset_id = self.settings.get_setting("current_preset")
+        presets = self.settings.get_setting("presets")
+        return presets.get(preset_id)
+
+    def add_preset(self, preset_id: str, preset_data: dict) -> bool:
+        """添加预设"""
+        if not preset_id or not preset_data:
+            return False
+            
+        presets = self.settings.get_setting("presets")
+        if preset_id in presets:
+            return False
+            
+        presets[preset_id] = preset_data
+        self.update_setting("presets", presets)
+        return True
+
+    def remove_preset(self, preset_id: str) -> bool:
+        """删除预设"""
+        if preset_id == "default":
+            return False
+            
+        presets = self.settings.get_setting("presets")
+        if preset_id not in presets:
+            return False
+            
+        del presets[preset_id]
+        self.update_setting("presets", presets)
+        return True
+
+    def get_all_presets(self) -> dict:
+        """获取所有预设"""
+        return self.settings.get_setting("presets")
+
+    def switch_preset(self, preset_id: str) -> bool | dict:
         """
         切换预设，包括切换模型和更新设置
-        
+
         Args:
             preset_id: 预设ID
-            
+
         Returns:
             成功返回True，失败返回包含错误信息的字典
         """
-        preset = self.settings.get_preset(preset_id)
+        if preset_id is None:
+            return {"error": "预设ID不能为空"}
+            
+        presets = self.settings.get_setting("presets")
+        preset = presets.get(preset_id)
+        
         if not preset:
             return {"error": "预设不存在"}
 
-        # 1. 切换 GPT 模型
-        gpt_result = self.switch_gpt_model(preset.get("gpt_weights_path"))
-        if isinstance(gpt_result, dict) and "error" in gpt_result:
-            return gpt_result
+        try:
+            # 1. 切换 GPT 模型
+            gpt_result = self.switch_gpt_model(preset.get("gpt_weights_path"))
+            if isinstance(gpt_result, dict) and "error" in gpt_result:
+                return gpt_result
 
-        # 2. 切换 Sovits 模型
-        sovits_result = self.switch_sovits_model(preset.get("sovits_weights_path"))
-        if isinstance(sovits_result, dict) and "error" in sovits_result:
-            return sovits_result
+            # 2. 切换 Sovits 模型
+            sovits_result = self.switch_sovits_model(preset.get("sovits_weights_path"))
+            if isinstance(sovits_result, dict) and "error" in sovits_result:
+                return sovits_result
 
-        # 3. 更新设置
-        if not self.settings.switch_preset(preset_id):
-            return {"error": "更新预设设置失败"}
-
-        return True
+            # 3. 更新当前预设ID
+            self.update_setting("current_preset", preset_id)
+            
+            # 4. 更新相关设置
+            for key, value in preset.items():
+                if key != "name":  # 跳过预设名称
+                    self.update_setting(key, value)
+                    
+            return True
+            
+        except Exception as e:
+            return {"error": f"切换预设时发生错误: {str(e)}"}
+    #endregion
 
     def text_to_speech(self, text: str):
         """
@@ -281,6 +333,9 @@ class TTSService:
                 self.client = TTSClient(value)
             else:
                 self.client.set_server_url(value)
+        #更换gpt模型时需要重新加载模型
+        if key == "gpt_model_path":
+            self.client.set_gpt_weights(value)
         #更换sovits模型时需要重新加载模型
         if key == "sovits_model_path":
             self.client.set_sovits_weights(value)
@@ -290,22 +345,12 @@ class TTSService:
         """
         保存当前配置
         """
-        # DEFAULT_TTS_SETTINGS = {
-        #     "url": None,  # TTS 后端的 URL
-        #     "initialize": True,  # 是否启用 TTS
-        #     "text_lang": "zh",  # 文本语言，默认中文
-        #     "ref_audio_path": "/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",  # 默认参考音频路径
-        #     "prompt_lang": "zh",  # 提示语言，默认中文
-        #     "prompt_text": "也许过大的目标会导致逻辑上的越界",  # 默认提示文本
-        #     "text_split_method": "cut5",  # 文本分割方法，默认 "cut5"
-        #     "batch_size": 1,  # 批处理大小，默认 1
-        #     "media_type": "wav",  # 返回音频的媒体类型，默认 "wav"
-        #     "streaming_mode": True,  # 是否启用流式响应，默认 True
-        #     "sovits_model_path": "/data/qinxu/GPT-SoVITS/GPT_weights_v2/37_1-e15.ckpt",  # Sovits模型路径
-        # }
         config = {
+            # 基础配置
             "url": self.settings.get_setting("url"),
-            "initialize": self.settings.get_setting("initialize"),
+            "initialize": self.settings.get_setting("initialize"), 
+            
+            # 合成参数
             "text_lang": self.settings.get_setting("text_lang"),
             "ref_audio_path": self.settings.get_setting("ref_audio_path"),
             "prompt_lang": self.settings.get_setting("prompt_lang"),
@@ -314,7 +359,14 @@ class TTSService:
             "batch_size": self.settings.get_setting("batch_size"),
             "media_type": self.settings.get_setting("media_type"),
             "streaming_mode": self.settings.get_setting("streaming_mode"),
+            
+            # 模型配置
             "sovits_model_path": self.settings.get_setting("sovits_model_path"),
+            "gpt_weights_path": self.settings.get_setting("gpt_weights_path"),
+            
+            # 预设配置
+            "current_preset": self.settings.get_setting("current_preset"),
+            "presets": self.settings.get_setting("presets")
         }
         self.persistence.save_config(config)
 
