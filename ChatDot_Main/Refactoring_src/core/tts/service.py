@@ -50,6 +50,50 @@ class TTSService:
         :return: bool
         """
         return self.settings.get_setting("initialize")
+    
+    def switch_gpt_model(self, weights_path: str):
+        """
+        切换GPT模型
+        
+        Args:
+            weights_path: GPT模型权重文件路径
+        
+        Returns:
+            成功返回True，失败返回错误信息
+        """
+        if not self.client:
+            return {"error": "TTS客户端未初始化"}
+            
+        try:
+            result = self.client.set_gpt_weights(weights_path)
+            if result == "success":
+                print(f"成功切换GPT模型: {weights_path}")
+                return True
+            return {"error": f"切换GPT模型失败: {result}"}
+        except Exception as e:
+            return {"error": f"切换GPT模型时发生错误: {str(e)}"}
+
+    def switch_sovits_model(self, weights_path: str):
+        """
+        切换Sovits模型
+        
+        Args:
+            weights_path: Sovits模型权重文件路径
+        
+        Returns:
+            成功返回True，失败返回错误信息
+        """
+        if not self.client:
+            return {"error": "TTS客户端未初始化"}
+            
+        try:
+            result = self.client.set_sovits_weights(weights_path)
+            if result == "success":
+                print(f"成功切换Sovits模型: {weights_path}")
+                return True
+            return {"error": f"切换Sovits模型失败: {result}"}
+        except Exception as e:
+            return {"error": f"切换Sovits模型时发生错误: {str(e)}"}
 
     def text_to_speech(self, text: str):
         """

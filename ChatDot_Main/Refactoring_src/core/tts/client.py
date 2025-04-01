@@ -14,6 +14,58 @@ class TTSClient:
         :param server_url: TTS 后端的服务器地址
         """
         self.server_url = server_url
+        
+    def set_gpt_weights(self, weights_path: str):
+        """
+        切换GPT模型权重
+        
+        Args:
+            weights_path: 模型权重文件路径
+        
+        Returns:
+            成功返回"success"，失败返回错误信息
+        """
+        if not self.server_url:
+            raise ValueError("TTS 后端 URL 未设置")
+        
+        url = f"{self.server_url}/set_gpt_weights"
+        params = {"weights_path": weights_path}
+        
+        try:
+            print(f"切换GPT模型: {url}, 参数: {params}")
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                return "success"
+            else:
+                return {"error": f"请求失败，状态码: {response.status_code}", "details": response.text}
+        except Exception as e:
+            return {"error": f"请求失败: {str(e)}"}
+
+    def set_sovits_weights(self, weights_path: str):
+        """
+        切换Sovits模型权重
+        
+        Args:
+            weights_path: 模型权重文件路径
+        
+        Returns:
+            成功返回"success"，失败返回错误信息
+        """
+        if not self.server_url:
+            raise ValueError("TTS 后端 URL 未设置")
+        
+        url = f"{self.server_url}/set_sovits_weights"
+        params = {"weights_path": weights_path}
+        
+        try:
+            print(f"切换Sovits模型: {url}, 参数: {params}")
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                return "success"
+            else:
+                return {"error": f"请求失败，状态码: {response.status_code}", "details": response.text}
+        except Exception as e:
+            return {"error": f"请求失败: {str(e)}"}
 
     def synthesize(self, text: str, text_lang: str, ref_audio_path: str, prompt_lang: str, prompt_text: str, text_split_method: str, batch_size: int, media_type: str, streaming_mode: bool):
         """
