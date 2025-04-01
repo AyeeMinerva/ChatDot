@@ -132,7 +132,7 @@ def tts_inference_post(text, text_lang, ref_audio_path, prompt_lang, prompt_text
 get_audio_data = tts_inference_get(
     text=input("请输入文本："),
     text_lang="zh",
-    ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 3.wav_0000005440_0000127680.wav",
+    ref_audio_path="/data/qinxu/GPT-SoVITS/sample_audios/37_也许过大的目标会导致逻辑上的越界.wav",
     prompt_lang="zh",
     prompt_text="也许过大的目标会导致逻辑上的越界"
 )

@@ -10,7 +10,8 @@ DEFAULT_TTS_SETTINGS = {
     "text_split_method": "cut5",  # 文本分割方法，默认 "cut5"
     "batch_size": 1,  # 批处理大小，默认 1
     "media_type": "wav",  # 返回音频的媒体类型，默认 "wav"
-    "streaming_mode": True  # 是否启用流式响应，默认 True
+    "streaming_mode": True,  # 是否启用流式响应，默认 True
+    "sovits_model_path": "/data/qinxu/GPT-SoVITS/GPT_weights_v2/37_1-e15.ckpt",  # Sovits模型路径
 }
 
 class TTSSettings:

@@ -251,16 +251,40 @@ class TTSService:
                 self.client = TTSClient(value)
             else:
                 self.client.set_server_url(value)
+        #更换sovits模型时需要重新加载模型
+        if key == "sovits_model_path":
+            self.client.set_sovits_weights(value)
         self.save_config()
 
     def save_config(self):
         """
         保存当前配置
         """
+        # DEFAULT_TTS_SETTINGS = {
+        #     "url": None,  # TTS 后端的 URL
+        #     "initialize": True,  # 是否启用 TTS
+        #     "text_lang": "zh",  # 文本语言，默认中文
+        #     "ref_audio_path": "/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",  # 默认参考音频路径
+        #     "prompt_lang": "zh",  # 提示语言，默认中文
+        #     "prompt_text": "也许过大的目标会导致逻辑上的越界",  # 默认提示文本
+        #     "text_split_method": "cut5",  # 文本分割方法，默认 "cut5"
+        #     "batch_size": 1,  # 批处理大小，默认 1
+        #     "media_type": "wav",  # 返回音频的媒体类型，默认 "wav"
+        #     "streaming_mode": True,  # 是否启用流式响应，默认 True
+        #     "sovits_model_path": "/data/qinxu/GPT-SoVITS/GPT_weights_v2/37_1-e15.ckpt",  # Sovits模型路径
+        # }
         config = {
             "url": self.settings.get_setting("url"),
             "initialize": self.settings.get_setting("initialize"),
-            "streaming_mode": self.settings.get_setting("streaming_mode")
+            "text_lang": self.settings.get_setting("text_lang"),
+            "ref_audio_path": self.settings.get_setting("ref_audio_path"),
+            "prompt_lang": self.settings.get_setting("prompt_lang"),
+            "prompt_text": self.settings.get_setting("prompt_text"),
+            "text_split_method": self.settings.get_setting("text_split_method"),
+            "batch_size": self.settings.get_setting("batch_size"),
+            "media_type": self.settings.get_setting("media_type"),
+            "streaming_mode": self.settings.get_setting("streaming_mode"),
+            "sovits_model_path": self.settings.get_setting("sovits_model_path"),
         }
         self.persistence.save_config(config)
 

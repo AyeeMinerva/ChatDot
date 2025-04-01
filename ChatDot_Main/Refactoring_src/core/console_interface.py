@@ -372,7 +372,8 @@ class ConsoleInterface:
         print("5. 设置文本分割方法")
         print("6. 设置批处理大小")
         print("7. 设置媒体类型")
-        print("8. 返回")
+        print("8. 更换sovits模型")
+        print("9. 返回")
         
         choice = input("请选择 (1-8): ").strip()
         
@@ -413,8 +414,11 @@ class ConsoleInterface:
             current = tts_service.settings.get_setting("media_type")
             new_value = input(f"请输入媒体类型 (当前: {current}): ").strip() or current
             tts_service.update_setting("media_type", new_value)
-            
         elif choice == "8":
+            current = tts_service.settings.get_setting("sovits_model_path")
+            new_value = input(f"请输入新的sovits模型路径 (当前: {current}): ").strip() or current
+            tts_service.update_setting("sovits_model_path", new_value)
+        elif choice == "9":
             return
         else:
             print("无效的选择")
