@@ -4,7 +4,7 @@ DEFAULT_TTS_SETTINGS = {
     "url": None,  # TTS 后端的 URL
     "initialize": True,  # 是否启用 TTS
     "text_lang": "zh",  # 文本语言，默认中文
-    "ref_audio_path": "/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 3.wav_0000005440_0000127680.wav",  # 默认参考音频路径
+    "ref_audio_path": "/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",  # 默认参考音频路径
     "prompt_lang": "zh",  # 提示语言，默认中文
     "prompt_text": "也许过大的目标会导致逻辑上的越界",  # 默认提示文本
     "text_split_method": "cut5",  # 文本分割方法，默认 "cut5"

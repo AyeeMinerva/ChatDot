@@ -140,7 +140,7 @@ if __name__ == "__main__":
     result = client.synthesize(
         text="先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。",
         text_lang="zh",
-        ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 3.wav_0000005440_0000127680.wav",
+        ref_audio_path="/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",
         prompt_lang="zh",
         prompt_text="也许过大的目标会导致逻辑上的越界",
         text_split_method="cut5",
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     stream_result = client.synthesize_stream(
         text="先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。",
         text_lang="zh",
-        ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 3.wav_0000005440_0000127680.wav",
+        ref_audio_path="/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",
         prompt_lang="zh",
         prompt_text="也许过大的目标会导致逻辑上的越界",
         text_split_method="cut5",
