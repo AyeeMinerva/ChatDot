@@ -92,7 +92,9 @@ class AudioPlayer:
                         if audio_data and self.stream:
                             self.stream.write(audio_data)
                 else:
-                    print("数据格式错误：不是有效的WAV数据")
+                    # 如果是音频数据，直接播放
+                    if self.stream:
+                        self.stream.write(chunk)
                     
             except Exception as e:
                 print(f"tts/audio_player: 音频播放错误: {e}")
