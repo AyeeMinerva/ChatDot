@@ -67,12 +67,19 @@ class ChatClient:
         # 接收消息及后处理
         #
         # 创建实时响应迭代器
+        ttsenabled = self.tts_service and self.tts_service.is_tts_enabled()
+        if ttsenabled:
+            print("TTS服务已启用...")
+            
         def realtime_response():
             full_response = []
             try:
                 for chunk in response_iterator:
                     full_response.append(chunk)  # 收集完整响应
-                    yield chunk                  # 实时返回每个片段
+                    if ttsenabled:
+                        print(f"实时播放文本到语音: {chunk}")
+                        self.tts_service.realtime_play_text_to_speech(chunk)
+                    yield chunk# 实时返回每个片段
             finally:
                 # 在迭代完成或发生异常时添加到历史
                 if full_response:
@@ -90,11 +97,14 @@ class ChatClient:
                         print("调用 Live2D 服务...")
                         self.live2d_service.text_to_live2d(processed_response)
                     #调用tts服务
-                    if self.tts_service and self.tts_service.is_tts_enabled():
-                        print("调用 TTS 服务...")
+                    if ttsenabled:
+                        self.tts_service.realtime_play_text_to_speech(force_process=True)  # 处理剩余缓冲区
+                        print("TTS流处理完成...")
+                    #if self.tts_service and self.tts_service.is_tts_enabled():
+                        #print("调用 TTS 服务...")
                         #self.tts_service.text_to_speech(processed_response)#调用此不会播放音频
                         # 直接播放音频
-                        self.tts_service.play_text_to_speech(processed_response)
+                        #self.tts_service.play_text_to_speech(processed_response)
                 
                         
         #endregion 接收消息及后处理(阻塞)

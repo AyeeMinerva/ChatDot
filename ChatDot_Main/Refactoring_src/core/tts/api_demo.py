@@ -128,14 +128,23 @@ def tts_inference_post(text, text_lang, ref_audio_path, prompt_lang, prompt_text
 
 # 示例调用
 
-# GET请求示例
+#GET请求示例
 get_audio_data = tts_inference_get(
-    text="先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。",
+    text=input("请输入文本："),
     text_lang="zh",
     ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 3.wav_0000005440_0000127680.wav",
     prompt_lang="zh",
     prompt_text="也许过大的目标会导致逻辑上的越界"
 )
+
+# # GET请求示例
+# get_audio_data = tts_inference_get(
+#     text="先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。",
+#     text_lang="zh",
+#     ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 3.wav_0000005440_0000127680.wav",
+#     prompt_lang="zh",
+#     prompt_text="也许过大的目标会导致逻辑上的越界"
+# )
 
 if isinstance(get_audio_data, bytes):
     with open("output_get.wav", "wb") as f:
@@ -144,18 +153,18 @@ if isinstance(get_audio_data, bytes):
 else:
     print("GET请求失败:", get_audio_data)
 
-# POST请求示例
-post_audio_data = tts_inference_post(
-    text="你好，世界！",
-    text_lang="zh",
-    ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 2.wav_0000036160_0000214080.wav",
-    prompt_lang="zh",
-    prompt_text="一个全新的洞穴，还有这些似曾相识的角度与曲线。"
-)
+# # POST请求示例
+# post_audio_data = tts_inference_post(
+#     text="你好，世界！",
+#     text_lang="zh",
+#     ref_audio_path="/data/qinxu/GPT-SoVITS/output/slicer_opt/录音 2.wav_0000036160_0000214080.wav",
+#     prompt_lang="zh",
+#     prompt_text="一个全新的洞穴，还有这些似曾相识的角度与曲线。"
+# )
 
-if isinstance(post_audio_data, bytes):
-    with open("output_post.wav", "wb") as f:
-        f.write(post_audio_data)
-    print("POST请求成功，音频已保存到 output_post.wav")
-else:
-    print("POST请求失败:", post_audio_data)
+# if isinstance(post_audio_data, bytes):
+#     with open("output_post.wav", "wb") as f:
+#         f.write(post_audio_data)
+#     print("POST请求成功，音频已保存到 output_post.wav")
+# else:
+#     print("POST请求失败:", post_audio_data)

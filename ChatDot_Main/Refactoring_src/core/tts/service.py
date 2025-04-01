@@ -103,7 +103,7 @@ class TTSService:
                 streaming_mode=False
             )
 
-    def play_text_to_speech(self, text: str):
+    def play_text_to_speech(self, text: str, force_play=True):
         """
         播放合成的语音
         """
@@ -115,8 +115,9 @@ class TTSService:
             return
 
         try:
-            # 停止任何正在播放的音频
-            player.stop()
+            if force_play:
+                # 强制停止任何正在播放的音频
+                player.stop()
             
             # 重新启动播放器
             player.start()
@@ -144,7 +145,57 @@ class TTSService:
                 print(f"流式处理完成，共处理 {chunk_count} 个音频块，总大小 {total_size} 字节")
         except Exception as e:
             print(f"播放音频时发生错误: {e}")
-
+            
+    def realtime_play_text_to_speech(self, text_chunk=None, force_process=False):
+        """
+        实时文本转语音处理，将文本块收集到缓冲区，在遇到标点符号时进行句级TTS
+        
+        Args:
+            text_chunk: 新的文本块，None表示不添加新文本
+            force_process: 是否强制处理缓冲区中的所有文本，不论是否遇到标点
+        """
+        # 第一次调用时初始化缓冲区
+        if not hasattr(self, '_text_buffer'):
+            self._text_buffer = ""
+        
+        # 添加新文本到缓冲区
+        if text_chunk:
+            self._text_buffer += text_chunk
+        
+        # 定义句子结束标点
+        sentence_end_punctuation = ["。", "！", "？", ".", "!", "?", "\n"]
+        
+        # 如果强制处理或缓冲区为空，则不需要继续
+        if not self._text_buffer:
+            return
+        
+        # 检查是否需要处理缓冲区
+        if force_process:
+            # 强制处理所有剩余文本
+            if self._text_buffer.strip():
+                print(f"强制处理剩余文本: {self._text_buffer}")
+                self.play_text_to_speech(self._text_buffer, force_play=False)
+                self._text_buffer = ""
+            return
+        
+        # 查找句子结束标点
+        process_index = -1
+        for punct in sentence_end_punctuation:
+            pos = self._text_buffer.rfind(punct)
+            if pos > process_index:
+                process_index = pos
+                
+        # 如果找到标点，处理到该标点为止的文本
+        if process_index >= 0:
+            # 提取要处理的文本（包括标点）
+            process_text = self._text_buffer[:process_index + 1]
+            # 保留剩余文本在缓冲区
+            self._text_buffer = self._text_buffer[process_index + 1:]
+            
+            if process_text.strip():
+                print(f"处理句子: {process_text}")
+                self.play_text_to_speech(process_text, force_play=False)
+        
     def update_setting(self, key, value):
         """
         更新设置并保存
