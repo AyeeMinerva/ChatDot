@@ -7,6 +7,11 @@ ChatDot is an innovative desktop floating chat assistant that provides instant a
 
 ChatDot 是一个创新的桌面悬浮窗聊天助手，让你随时快速访问 AI 对话功能，支持 OpenAI 格式的标准 LLM API。同时还可以通过 SillyTavern-Extension-ChatBridge 连接到 SillyTavern，使用其强大的角色扮演功能。
 
+## Recent Changelog | 最新更新日志
+
+- 2025/03/31: The TTS interface (using GPT-So-Vits) has been completed, and the live2d interface is in its preliminary development phase. Both are now supported for invocation within the core.
+- 2025/03/31: 现已完成tts接口（GPT-So-Vits）和初步完成live2d接口，支持在内核中调用
+
 ## ✨ Features | 特色功能
 
 ### Elegant Interface | 优雅界面
