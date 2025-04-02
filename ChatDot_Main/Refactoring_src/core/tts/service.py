@@ -327,6 +327,13 @@ class TTSService:
         更新设置并保存
         """
         self.settings.update_setting(key, value)
+        #初始化参数
+        if key == "initialize":
+            if value:
+                self.initialize()
+            else:
+                if self.client:
+                    self.client.shutdown()
         if key == "url" and self.client:
             #若之前没有url,则初始化客户端
             if not self.client:
