@@ -2,6 +2,7 @@ import asyncio
 from live2d.client import Live2DClient
 from live2d.settings import Live2DSettings
 from live2d.persistence import Live2DPersistence
+from global_managers.logger_manager import LoggerManager
 
 class Live2DService:
     """
@@ -29,7 +30,7 @@ class Live2DService:
 
         # 检查是否需要初始化
         if not self.settings.get_setting("initialize"):
-            print("Live2D 初始化被禁用，跳过初始化")
+            LoggerManager().get_logger().debug("Live2D 初始化被禁用，跳过初始化")
             return
 
         # 设置客户端 URL 和情感分析状态
@@ -40,7 +41,7 @@ class Live2DService:
         if url:
             self.client.set_server_url(url)
         else:
-            print("警告: Live2D URL 未设置，无法初始化客户端")
+            LoggerManager().get_logger().warning("警告: Live2D URL 未设置，无法初始化客户端")
 
         self._initialized = True
         
@@ -78,12 +79,12 @@ class Live2DService:
         :param text: 输入的文本
         """
         if not self.settings.get_setting("initialize"):
-            print("Live2D 未初始化，无法处理请求")
+            LoggerManager().get_logger().warning("Live2D 未初始化，无法处理请求")
             return
 
         url = self.settings.get_setting("url")
         if not url:
-            print("警告: Live2D URL 未设置，无法处理请求")
+            LoggerManager().get_logger().warning("警告: Live2D URL 未设置，无法处理请求")
             return
 
         asyncio.run(self._text_to_live2d_async(text))
@@ -107,10 +108,10 @@ class Live2DService:
             self.client.set_server_url(value)
         elif key == "initialize":
             if value:  # 如果启用
-                print("正在启用 Live2D 服务...")
+                LoggerManager().get_logger().debug("正在启用 Live2D 服务...")
                 self.initialize()
             else:  # 如果禁用
-                print("正在禁用 Live2D 服务...")
+                LoggerManager().get_logger().debug("正在禁用 Live2D 服务...")
                 self.client = None  # 清理客户端实例
                 self._initialized = False
         self.save_config()
@@ -119,4 +120,4 @@ class Live2DService:
         """
         关闭服务（可选）
         """
-        print("Live2DService 已关闭")
+        LoggerManager().get_logger().debug("Live2DService 已关闭")

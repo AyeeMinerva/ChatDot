@@ -4,6 +4,7 @@ from chat.service import ChatService
 from chat.context_handle.service import ContextHandleService
 from client.llm.service import LLMService
 from live2d.service import Live2DService
+from global_managers.logger_manager import LoggerManager
 from tts.service import TTSService
 
 class Bootstrap:

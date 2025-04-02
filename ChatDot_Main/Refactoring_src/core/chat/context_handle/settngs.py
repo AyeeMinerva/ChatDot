@@ -1,4 +1,5 @@
 from global_managers.settings_manager import SettingsManager
+from global_managers.logger_manager import LoggerManager
 
 DEFAULT_CONTEXT_HANDLE_SETTINGS = {
     "current_handler": "defaultPrompt",  # 默认的上下文处理器

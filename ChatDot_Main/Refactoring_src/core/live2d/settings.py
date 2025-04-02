@@ -1,4 +1,5 @@
 from global_managers.settings_manager import SettingsManager
+from global_managers.logger_manager import LoggerManager
 
 DEFAULT_LIVE2D_SETTINGS = {
     "url": None,  # Live2D 后端的 URL，默认为 None

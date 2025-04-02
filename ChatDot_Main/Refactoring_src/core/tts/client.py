@@ -1,4 +1,5 @@
 import requests
+from global_managers.logger_manager import LoggerManager
 
 class TTSClient:
     def __init__(self, server_url: str = None):
@@ -32,7 +33,7 @@ class TTSClient:
         params = {"weights_path": weights_path}
         
         try:
-            print(f"切换GPT模型: {url}, 参数: {params}")
+            LoggerManager().get_logger().debug(f"切换GPT模型: {url}, 参数: {params}")
             response = requests.get(url, params=params)
             if response.status_code == 200:
                 return "success"
@@ -58,7 +59,7 @@ class TTSClient:
         params = {"weights_path": weights_path}
         
         try:
-            print(f"切换Sovits模型: {url}, 参数: {params}")
+            LoggerManager().get_logger().debug(f"切换Sovits模型: {url}, 参数: {params}")
             response = requests.get(url, params=params)
             if response.status_code == 200:
                 return "success"
@@ -88,7 +89,7 @@ class TTSClient:
         }
 
         try:
-            print(f"tts.client: 请求 URL: {url}, 参数: {params}")
+            LoggerManager().get_logger().debug(f"tts.client: 请求 URL: {url}, 参数: {params}")
             response = requests.get(url, params=params)
             if response.status_code == 200:
                 return response.content  # 返回完整的音频数据
@@ -118,7 +119,7 @@ class TTSClient:
         }
 
         try:
-            print(f"tts.client: 请求 URL: {url}, 参数: {params}")
+            LoggerManager().get_logger().debug(f"tts.client: 请求 URL: {url}, 参数: {params}")
             with requests.get(url, params=params, stream=True) as response:
                 if response.status_code == 200:
                     for chunk in response.iter_content(chunk_size=1024):

@@ -1,4 +1,5 @@
 from global_managers.settings_manager import SettingsManager
+from global_managers.logger_manager import LoggerManager
 
 DEFAULT_LLM_SETTINGS = {
     "api_keys": [],

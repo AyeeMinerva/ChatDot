@@ -6,6 +6,7 @@ from tts.persistence import TTSPersistence
 from tts.audio_player import AudioPlayer
 from tts.audio_player import player
 import time
+from global_managers.logger_manager import LoggerManager
 
 class TTSService:
     """
@@ -32,7 +33,7 @@ class TTSService:
 
         # 检查是否需要初始化
         if not self.settings.get_setting("initialize"):
-            print("TTS 初始化被禁用，跳过初始化")
+            LoggerManager().get_logger().debug("TTS 初始化被禁用，跳过初始化")
             return
 
         # 设置客户端 URL
@@ -40,7 +41,7 @@ class TTSService:
         if url:
             self.client = TTSClient(server_url=url)
         else:
-            print("警告: TTS URL 未设置，无法初始化客户端")
+            LoggerManager().get_logger().warning("警告: TTS URL 未设置，无法初始化客户端")
 
         self._initialized = True
         
@@ -67,7 +68,7 @@ class TTSService:
         try:
             result = self.client.set_gpt_weights(weights_path)
             if result == "success":
-                print(f"成功切换GPT模型: {weights_path}")
+                LoggerManager().get_logger().debug(f"成功切换GPT模型: {weights_path}")
                 return True
             return {"error": f"切换GPT模型失败: {result}"}
         except Exception as e:
@@ -89,7 +90,7 @@ class TTSService:
         try:
             result = self.client.set_sovits_weights(weights_path)
             if result == "success":
-                print(f"成功切换Sovits模型: {weights_path}")
+                LoggerManager().get_logger().debug(f"成功切换Sovits模型: {weights_path}")
                 return True
             return {"error": f"切换Sovits模型失败: {result}"}
         except Exception as e:
@@ -203,7 +204,7 @@ class TTSService:
             raise ValueError("TTS 设置不完整，请检查配置")
 
         if streaming_mode:
-            #print("使用流式合成")
+            #LoggerManager().get_logger().debug("使用流式合成")
             return self.client.synthesize_stream(
                 text=text,
                 text_lang=text_lang,
@@ -216,7 +217,7 @@ class TTSService:
                 streaming_mode=True
             )
         else:
-            #print("使用非流式合成")
+            #LoggerManager().get_logger().debug("使用非流式合成")
             return self.client.synthesize(
                 text=text,
                 text_lang=text_lang,
@@ -233,11 +234,11 @@ class TTSService:
         """
         播放合成的语音
         """
-        print("开始播放合成语音...")
+        LoggerManager().get_logger().debug("开始播放合成语音...")
         result = self.text_to_speech(text)
         
         if not isinstance(result, (bytes, types.GeneratorType)):
-            print(f"合成失败: {result}")
+            LoggerManager().get_logger().debug(f"合成失败: {result}")
             return
 
         try:
@@ -250,7 +251,7 @@ class TTSService:
             
             if isinstance(result, bytes):
                 # 非流式模式：直接播放完整音频
-                print(f"播放完整音频，大小: {len(result)} 字节")
+                LoggerManager().get_logger().debug(f"播放完整音频，大小: {len(result)} 字节")
                 player.feed_data(result)
             else:
                 # 流式模式：逐块处理
@@ -261,16 +262,16 @@ class TTSService:
                         chunk_count += 1
                         chunk_size = len(chunk)
                         total_size += chunk_size
-                        #print(f"处理第 {chunk_count} 个音频块，大小: {chunk_size} 字节")
+                        #LoggerManager().get_logger().debug(f"处理第 {chunk_count} 个音频块，大小: {chunk_size} 字节")
                         player.feed_data(chunk)
                         # 添加小延迟，防止缓冲区溢出
                         time.sleep(0.01)
                     else:
-                        print(f"处理音频块失败: {chunk}")
+                        LoggerManager().get_logger().warning(f"处理音频块失败: {chunk}")
                         break
-                print(f"流式处理完成，共处理 {chunk_count} 个音频块，总大小 {total_size} 字节")
+                LoggerManager().get_logger().debug(f"流式处理完成，共处理 {chunk_count} 个音频块，总大小 {total_size} 字节")
         except Exception as e:
-            print(f"播放音频时发生错误: {e}")
+            LoggerManager().get_logger().warning(f"播放音频时发生错误: {e}")
             
     def realtime_play_text_to_speech(self, text_chunk=None, force_process=False):
         """
@@ -299,7 +300,7 @@ class TTSService:
         if force_process:
             # 强制处理所有剩余文本
             if self._text_buffer.strip():
-                print(f"强制处理剩余文本: {self._text_buffer}")
+                LoggerManager().get_logger().debug(f"强制处理剩余文本: {self._text_buffer}")
                 self.play_text_to_speech(self._text_buffer, force_play=False)
                 self._text_buffer = ""
             return
@@ -319,7 +320,7 @@ class TTSService:
             self._text_buffer = self._text_buffer[process_index + 1:]
             
             if process_text.strip():
-                print(f"处理句子: {process_text}")
+                LoggerManager().get_logger().debug(f"处理句子: {process_text}")
                 self.play_text_to_speech(process_text, force_play=False)
         
     def update_setting(self, key, value):
@@ -327,13 +328,11 @@ class TTSService:
         更新设置并保存
         """
         self.settings.update_setting(key, value)
+        self.save_config()
         #初始化参数
         if key == "initialize":
             if value:
                 self.initialize()
-            else:
-                if self.client:
-                    self.client.shutdown()
         if key == "url" and self.client:
             #若之前没有url,则初始化客户端
             if not self.client:
@@ -346,7 +345,6 @@ class TTSService:
         #更换sovits模型时需要重新加载模型
         if key == "sovits_model_path":
             self.client.set_sovits_weights(value)
-        self.save_config()
 
     def save_config(self):
         """
@@ -381,7 +379,7 @@ class TTSService:
         """
         关闭服务
         """
-        print("TTSService 已关闭")
+        LoggerManager().get_logger().info("TTSService 已关闭")
 
 
 if __name__ == "__main__":

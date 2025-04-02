@@ -1,5 +1,6 @@
 from typing import Iterator, List, Dict, Optional, Callable, Tuple
 from global_managers.service_manager import ServiceManager
+from global_managers.logger_manager import LoggerManager
 from chat.client import ChatClient
 from chat.settings import ChatSettings
 from chat.persistence import ChatPersistence
@@ -17,7 +18,7 @@ class ChatService:
         llm_service = self.service_manager.get_service("llm_service")
         
         # 初始化客户端
-        self.client = ChatClient(llm_service, self.service_manager)
+        self.client = ChatClient(llm_service, self.service_manager, self.persistence)
         self.client.initialize()
         
         # 加载历史记录
@@ -37,11 +38,13 @@ class ChatService:
         """
         local_messages, response_iter = self.client.send_message(message, is_stream)
         
-        # 保存本地消息历史
-        self.persistence.save_history(local_messages)
-        
         # 将响应迭代器直接返回给调用者
         return response_iter
+    
+    def stop_generating(self):
+        """停止当前生成过程"""
+        if self.client:
+            self.client.stop_generating()
 
     def clear_context(self):
         """清空上下文"""

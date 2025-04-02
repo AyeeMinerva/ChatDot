@@ -5,10 +5,11 @@ from client.llm.settings import LLMSettings
 from client.llm.persistence import LLMPersistence
 from client.llm.worker import LLMWorker
 import traceback
+from global_managers.logger_manager import LoggerManager
 
 class LLMService:
     def __init__(self):
-        #print(f"LLMService: 创建实例 id={id(self)}")
+        #LoggerManager().get_logger().debug(f"LLMService: 创建实例 id={id(self)}")
         self._initialized = False  # 初始化标记
         #self.service_manager = ServiceManager()
         self.settings = LLMSettings()
@@ -18,7 +19,7 @@ class LLMService:
     def initialize(self):
         """初始化服务"""
         if self._initialized:
-            #print("LLMService: 已经初始化过，跳过重复初始化")
+            #LoggerManager().get_logger().debug("LLMService: 已经初始化过，跳过重复初始化")
             return
         config = self.persistence.load_config()
         if config:
@@ -31,17 +32,17 @@ class LLMService:
         
     def _initialize_client_config(self):
         """初始化客户端配置"""
-        #print("LLMService: 正在执行_initialize_client_config...")
-        #print("\nLLMService: _initialize_client_config 被调用")
-        #print("调用栈:")
-        #print(''.join(traceback.format_stack()[:-1]))  # 打印调用栈
+        #LoggerManager().get_logger().debug("LLMService: 正在执行_initialize_client_config...")
+        #LoggerManager().get_logger().debug("\nLLMService: _initialize_client_config 被调用")
+        #LoggerManager().get_logger().debug("调用栈:")
+        #LoggerManager().get_logger().debug(''.join(traceback.format_stack()[:-1]))  # 打印调用栈
         api_keys = self.settings.get_setting("api_keys")
         api_base = self.settings.get_setting("api_base")
         self.client.set_api_config(api_keys, api_base, test_connection=False)
 
         model_name = self.settings.get_setting("model_name")
         model_params = self.settings.get_setting("model_params")
-        #print(f"LLMService: 从settings加载配置 - model_name: {model_name}, model_params: {model_params}")
+        #LoggerManager().get_logger().debug(f"LLMService: 从settings加载配置 - model_name: {model_name}, model_params: {model_params}")
         self.client.set_model_name(model_name)
         self.client.set_model_params(model_params)
 
@@ -55,6 +56,10 @@ class LLMService:
         }
         self.persistence.save_config(config)
 
+    def stop_generating(self):
+        """停止生成"""
+        self.client.stop_generating()
+    
     def send_message(self, messages: List[Dict], model_name: str = None, 
                     model_params: Dict = None) -> Iterator[str]:
         """
@@ -85,7 +90,7 @@ class LLMService:
 
     def update_setting(self, key, value):
         """更新设置并保存"""
-        #print(f"LLMService: 调用 update_setting: key={key}, value={value}")
+        #LoggerManager().get_logger().debug(f"LLMService: 调用 update_setting: key={key}, value={value}")
         self.settings.update_setting(key, value)
         #调用client的set_api_config方法
         # 根据不同的设置类型调用对应的配置方法

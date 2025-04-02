@@ -1,4 +1,5 @@
 from global_managers.persistence_manager import PersistenceManager
+from global_managers.logger_manager import LoggerManager
 
 class TTSPersistence:
     def __init__(self):

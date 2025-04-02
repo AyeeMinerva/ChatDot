@@ -4,6 +4,7 @@ from typing import Dict, Optional, List, Type
 from chat.context_handle.providers.base import BaseContextHandler
 from chat.context_handle.settngs import ContextHandleSettings
 from chat.context_handle.persistence import ContextHandlePersistence
+from global_managers.logger_manager import LoggerManager
 
 class ContextHandleManager:
     """上下文处理器管理器，负责加载、管理和切换上下文处理器"""
@@ -40,7 +41,7 @@ class ContextHandleManager:
                     if hasattr(module, 'ContextHandler'):
                         self.handlers[handler_name] = module.ContextHandler
                 except Exception as e:
-                    print(f"加载处理器 {handler_name} 失败: {str(e)}")
+                    LoggerManager().get_logger().warning(f"加载处理器 {handler_name} 失败: {str(e)}")
 
     def initialize_default_handler(self) -> None:
         """初始化默认处理器"""
@@ -51,7 +52,7 @@ class ContextHandleManager:
             if 'defaultPrompt' in self.handlers:
                 self.set_handler('defaultPrompt')
             else:
-                print("警告: 无法加载默认处理器")
+                LoggerManager().get_logger().warning("警告: 无法加载默认处理器")
 
     def set_handler(self, handler_name: str) -> bool:
         """设置当前使用的处理器"""
@@ -63,7 +64,7 @@ class ContextHandleManager:
             self.persistence.save_current_handler(handler_name)
             return True
         except Exception as e:
-            print(f"设置处理器 {handler_name} 失败: {str(e)}")
+            LoggerManager().get_logger().warning(f"设置处理器 {handler_name} 失败: {str(e)}")
             return False
 
     def get_current_handler(self) -> Optional[BaseContextHandler]:
@@ -80,7 +81,7 @@ class ContextHandleManager:
                 info['id'] = name
                 handlers_info.append(info)
             except Exception as e:
-                print(f"获取处理器 {name} 信息失败: {str(e)}")
+                LoggerManager().get_logger().warning(f"获取处理器 {name} 信息失败: {str(e)}")
         return handlers_info
 
     # def process_before_send(self, messages: List[Dict]) -> List[Dict]:

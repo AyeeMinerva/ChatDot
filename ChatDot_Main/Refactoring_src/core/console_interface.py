@@ -1,7 +1,10 @@
 from typing import Dict, Callable
 from bootstrap import Bootstrap
 from global_managers.service_manager import ServiceManager
+from global_managers.logger_manager import LoggerManager
 import shutil
+import sys
+import msvcrt
 
 class ConsoleInterface:
     """控制台交互界面"""
@@ -91,6 +94,11 @@ class ConsoleInterface:
                     first_chunk = next(response_iterator)
                     print("助手: " + first_chunk, end='', flush=True)
                     for chunk in response_iterator:
+                        # 检查是否按下 ESC 键
+                        if msvcrt.kbhit() and msvcrt.getch() == b'\x1b':
+                            chat_service.stop_generating()
+                            print("\n[已打断]", end='', flush=True)
+                            break
                         print(chunk, end='', flush=True)
                     print()  # 打印换行
                 else:
@@ -99,8 +107,13 @@ class ConsoleInterface:
                     chunk_count = 0
                     response_iterator = chat_service.send_message(user_input, is_stream=True)
                     
-                    # 移除这里的print("助手: ")
                     for chunk in response_iterator:
+                        # 检查是否按下 ESC 键
+                        if msvcrt.kbhit() and msvcrt.getch() == b'\x1b':
+                            chat_service.stop_generating()
+                            print("\n[已打断]")
+                            break
+                        
                         accumulated_text += chunk
                         chunk_count += 1
                         

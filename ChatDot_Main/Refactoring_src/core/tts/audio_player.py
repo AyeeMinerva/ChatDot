@@ -5,6 +5,7 @@ import io
 import wave
 import time
 import numpy as np
+from global_managers.logger_manager import LoggerManager
 
 class AudioPlayer:
     _instance = None
@@ -25,7 +26,7 @@ class AudioPlayer:
             self.pyaudio = pyaudio.PyAudio()
             self.stream = None
             self.initialized = True
-            #print("AudioPlayer 初始化完成")
+            #LoggerManager().get_logger().debug("AudioPlayer 初始化完成")
 
     def start(self):
         """启动播放线程"""
@@ -35,7 +36,7 @@ class AudioPlayer:
             self.play_thread = threading.Thread(target=self._play_from_queue)
             self.play_thread.daemon = True
             self.play_thread.start()
-            #print("音频播放线程已启动")
+            #LoggerManager().get_logger().debug("音频播放线程已启动")
 
     def stop(self):
         """停止播放"""
@@ -55,7 +56,7 @@ class AudioPlayer:
             self.stream.close()
             self.stream = None
         
-        #print("音频播放已停止")
+        #LoggerManager().get_logger().debug("音频播放已停止")
 
     def _play_from_queue(self):
         """从队列中获取并播放音频数据"""
@@ -69,7 +70,7 @@ class AudioPlayer:
                 
                 # 检查是否为WAV数据
                 if len(chunk) >= 44 and chunk.startswith(b'RIFF'):
-                    print("收到WAV头部数据，开始播放音频")
+                    LoggerManager().get_logger().debug("收到WAV头部数据，开始播放音频")
                     # 解析WAV头获取音频参数
                     wav_file = wave.open(io.BytesIO(chunk))
                     
@@ -97,7 +98,7 @@ class AudioPlayer:
                         self.stream.write(chunk)
                     
             except Exception as e:
-                print(f"tts/audio_player: 音频播放错误: {e}")
+                LoggerManager().get_logger().warning(f"tts/audio_player: 音频播放错误: {e}")
     
 
     def feed_data(self, audio_data: bytes):
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     
     # 测试音频播放
     def test_play_audio(wav_path):
-        print(f"\n开始播放音频: {wav_path}")
+        LoggerManager().get_logger().debug(f"\n开始播放音频: {wav_path}")
         
         # 获取播放器实例
         player = AudioPlayer.get_instance()
@@ -143,13 +144,13 @@ if __name__ == "__main__":
                 
             # 连续播放3次
             for i in range(3):
-                print(f"\n第 {i+1} 次播放")
+                LoggerManager().get_logger().debug(f"\n第 {i+1} 次播放")
                 player.feed_data(audio_data)
                 # 等待2秒
                 time.sleep(2)
                 
         except Exception as e:
-            print(f"播放出错: {e}")
+            LoggerManager().get_logger().warning(f"播放出错: {e}")
         finally:
             player.stop()
     
@@ -159,5 +160,5 @@ if __name__ == "__main__":
     if os.path.exists(wav_path):
         test_play_audio(wav_path)
     else:
-        print(f"测试文件不存在: {wav_path}")
-        print("请修改为正确的WAV文件路径")
+        LoggerManager().get_logger().warning(f"测试文件不存在: {wav_path}")
+        LoggerManager().get_logger().warning("请修改为正确的WAV文件路径")

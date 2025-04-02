@@ -1,5 +1,6 @@
 from typing import List, Dict
 from global_managers.persistence_manager import PersistenceManager
+from global_managers.logger_manager import LoggerManager
 import os
 import json
 from datetime import datetime

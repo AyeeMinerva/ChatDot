@@ -2,6 +2,7 @@ import warnings
 import openai
 from collections import deque
 from threading import Lock
+from global_managers.logger_manager import LoggerManager
 
 class LLMClient:
     """
@@ -75,7 +76,7 @@ class LLMClient:
                     test_client.models.list()
                     valid_keys.append(key)
                 except Exception as e:
-                    print(f"API Key {key[:8]}... 测试失败(llm_client.set_api_config): {e}")
+                    LoggerManager().get_logger().warning(f"API Key {key[:8]}... 测试失败(llm_client.set_api_config): {e}")
             
             #去除apikeys筛选逻辑
             # if not valid_keys:
@@ -100,7 +101,7 @@ class LLMClient:
             models = self.client.models.list()
             if not models:
                 raise RuntimeError("无法获取模型列表，API 连接可能存在问题。")
-            print("API 连接测试成功，成功获取模型列表...")
+            LoggerManager().get_logger().debug("API 连接测试成功，成功获取模型列表...")
         except Exception as e:
             self.client = None
             raise RuntimeError(f"API 连接测试失败(test_connection): {e}")
@@ -109,7 +110,7 @@ class LLMClient:
         if not model_name:
             raise ValueError("模型名称不能为空。")
         self.model_name = model_name
-        print(f"模型名称设置为: {model_name}")
+        LoggerManager().get_logger().debug(f"模型名称设置为: {model_name}")
 
     def get_model_name(self):
         return self.model_name
@@ -118,10 +119,29 @@ class LLMClient:
         if not isinstance(params, dict):
             raise ValueError("模型参数必须是字典类型。")
         self.model_params = params
-        print(f"模型参数设置为: {params}")
+        LoggerManager().get_logger().debug(f"模型参数设置为: {params}")
         if 'stream' not in self.model_params:
             self.model_params['stream'] = True  # 默认启用
-
+    
+    def stop_generating(self):
+        """
+        尝试停止当前生成过程
+        
+        Returns:
+            bool: 如果成功执行API级打断则返回True，否则返回False
+        """
+        try:
+            if hasattr(self, '_current_response') and self._current_response:
+                if hasattr(self._current_response, 'abort'):
+                    self._current_response.abort()
+                    LoggerManager().get_logger().debug("LLM API 级打断成功")
+                    return True
+                else:
+                    LoggerManager().get_logger().debug("当前 LLM API 不支持打断操作")
+        except Exception as e:
+            LoggerManager().get_logger().warning(f"LLM API 级打断失败: {e}")
+        return False
+    
     #def communicate(self, messages, model_name=None, stream=False, model_params_override=None): #stream参数现已整合进params
     def communicate(self, messages, model_name=None, model_params_override=None):
         if not self.client:
@@ -139,14 +159,14 @@ class LLMClient:
             base_url=self.api_base
         )
         stream = params.get('stream', False)
-        print(f"--- LLM Request Parameters ---")
-        print(f"Bae URL: {self.api_base}")
-        print(f"API Key: {api_key}")
-        print(f"Model Name: {final_model_name}")
-        print(f"Model Params: {params}")
-        #print(f"Stream: {stream}") #stream参数现已整合进params
-        print(f"Messages: {messages}")
-        print("-------------------------------")
+        LoggerManager().get_logger().debug(f"--- LLM Request Parameters ---")
+        LoggerManager().get_logger().debug(f"Bae URL: {self.api_base}")
+        LoggerManager().get_logger().debug(f"API Key: {api_key}")
+        LoggerManager().get_logger().debug(f"Model Name: {final_model_name}")
+        LoggerManager().get_logger().debug(f"Model Params: {params}")
+        #LoggerManager().get_logger().debug(f"Stream: {stream}") #stream参数现已整合进params
+        LoggerManager().get_logger().debug(f"Messages: {messages}")
+        LoggerManager().get_logger().debug("-------------------------------")
 
         try:
             response = self.client.chat.completions.create(

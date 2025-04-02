@@ -1,6 +1,7 @@
 import threading
 import queue
 from typing import List, Dict, Optional, Iterator
+from global_managers.logger_manager import LoggerManager
 
 class LLMWorker(threading.Thread):
     """LLM工作线程，使用队列实现实时数据流"""

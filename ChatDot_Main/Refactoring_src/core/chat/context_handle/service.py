@@ -2,6 +2,7 @@ from typing import List, Dict, Optional, Tuple
 from global_managers.service_manager import ServiceManager
 from chat.context_handle.providers.base import BaseContextHandler
 from chat.context_handle.manager import ContextHandleManager
+from global_managers.logger_manager import LoggerManager
 
 class ContextHandleService:
     """上下文处理器服务层"""
