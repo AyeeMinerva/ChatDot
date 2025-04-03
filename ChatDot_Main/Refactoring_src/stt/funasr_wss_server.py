@@ -7,6 +7,7 @@ import tracemalloc
 import numpy as np
 import argparse
 import ssl
+import os
 
 
 """
@@ -142,7 +143,7 @@ async def clear_websocket():
     websocket_users.clear()
 
 
-async def ws_serve(websocket, path):
+async def ws_serve(websocket, path=None):
     frames = []
     frames_asr = []
     frames_asr_online = []
@@ -345,8 +346,31 @@ async def async_asr_online(websocket, audio_in):
 #         ws_serve, args.host, args.port, subprotocols=["binary"], ping_interval=None, ssl=ssl_context
 #     )
 # else:
-start_server = websockets.serve(
-    ws_serve, args.host, args.port, subprotocols=["binary"], ping_interval=None
-)
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+
+#old
+# start_server = websockets.serve(
+#     ws_serve, args.host, args.port, subprotocols=["binary"], ping_interval=None
+# )
+# asyncio.get_event_loop().run_until_complete(start_server)
+# asyncio.get_event_loop().run_forever()
+#python 3.7+
+async def main():
+    # 在此处创建服务器
+    if len(args.certfile) > 0 and os.path.exists(args.certfile) and os.path.exists(args.keyfile):
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_cert = args.certfile
+        ssl_key = args.keyfile
+        ssl_context.load_cert_chain(ssl_cert, keyfile=ssl_key)
+        server = await websockets.serve(
+            ws_serve, args.host, args.port, subprotocols=["binary"], ping_interval=None, ssl=ssl_context
+        )
+    else:
+        server = await websockets.serve(
+            ws_serve, args.host, args.port, subprotocols=["binary"], ping_interval=None
+        )
+    
+    # 保持服务器运行
+    await asyncio.Future()
+
+# 启动事件循环
+asyncio.run(main())
