@@ -11,6 +11,10 @@ DEFAULT_SETTINGS = {
     "port": 10095,                  # 服务器端口
     "use_ssl": False,               # 是否使用SSL
     
+    # 音频收集设置
+    "volume_threshold": 300,       # 音量阈值，0-32767之间的值，越小越灵敏
+    "silence_timeout": 1.5,        # 沉默超时时间(秒)，多久没有声音就中断当前语音片段
+    
     # 服务器设置
     "use_local_server": True,       # 是否使用本地服务器
     "auto_start_server": True,      # 是否自动启动本地服务器
