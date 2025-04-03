@@ -117,14 +117,6 @@ class STTService:
             
             self.client.set_server(host, port, use_ssl)
             
-            # 设置音频参数
-            volume_threshold = self.settings.get_setting("volume_threshold")
-            silence_timeout = self.settings.get_setting("silence_timeout")
-            self.client.set_audio_params(
-                volume_threshold=volume_threshold,
-                silence_timeout=silence_timeout
-            )
-            
             self.is_initialized = True
             self.logger.info("STT服务初始化完成")
             return True
@@ -197,28 +189,6 @@ class STTService:
         except Exception as e:
             self.logger.error(f"初始化STT服务失败: {e}")
             return False
-        
-    def set_audio_threshold(self, threshold: int = None, silence_timeout: float = None) -> None:
-        """
-        设置音频收录阈值
-        
-        Args:
-            threshold: 音量阈值，0-32767之间的值，越小越灵敏
-            silence_timeout: 沉默超时时间(秒)，多久没有声音就中断当前语音片段
-        """
-        if threshold is not None:
-            self.settings.update_setting("volume_threshold", threshold)
-            if self.client:
-                self.client.set_audio_params(volume_threshold=threshold)
-                
-        if silence_timeout is not None:
-            self.settings.update_setting("silence_timeout", silence_timeout)
-            if self.client:
-                self.client.set_audio_params(silence_timeout=silence_timeout)
-                
-        # 保存设置
-        self.save_config()
-        self.logger.info(f"已更新音频阈值设置: 阈值={threshold}, 超时={silence_timeout}秒")
 
     def shutdown(self) -> None:
         """关闭STT服务"""

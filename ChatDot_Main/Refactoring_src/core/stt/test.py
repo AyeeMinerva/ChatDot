@@ -1,6 +1,5 @@
 """
 STT服务测试脚本
-python -m ChatDot_Main.Refactoring_src.core.stt.test
 """
 import asyncio
 import time
@@ -27,18 +26,6 @@ async def test_async():
     print(f"- 服务器端口: {stt.settings.get_setting('port')}")
     print(f"- 使用本地服务: {stt.settings.get_setting('use_local_server')}")
     print(f"- 自动启动服务器: {stt.settings.get_setting('auto_start_server')}")
-    print(f"- 音量阈值: {stt.settings.get_setting('volume_threshold')}")
-    print(f"- 沉默超时: {stt.settings.get_setting('silence_timeout')}秒")
-    
-    # 设置音量阈值
-    threshold_input = input("\n设置音量阈值 (300-3000，值越小越灵敏，默认300): ")
-    if threshold_input.strip():
-        try:
-            threshold = int(threshold_input)
-            stt.set_audio_threshold(threshold=threshold)
-            print(f"音量阈值已设置为 {threshold}")
-        except ValueError:
-            print("输入无效，使用默认阈值")
     
     # 修改服务器地址
     server_choice = input("\n选择服务器类型:\n1. 本地服务器 (localhost)\n2. 远程服务器 (183.175.12.68)\n请输入选择 (默认1): ")

@@ -8,7 +8,6 @@ import json
 import pyaudio
 import websockets
 import time
-import numpy as np
 from typing import Callable, List, Optional
 from global_managers.logger_manager import LoggerManager
 
@@ -26,52 +25,6 @@ class STTClient:
         self.is_running = False
         self.segment_callbacks: List[Callable[[str], None]] = []
         self.logger = LoggerManager().get_logger()
-        
-        self.volume_threshold = 300  # 默认音量阈值
-        self.silence_timeout = 1.5   # 默认沉默超时时间(秒)
-        self.last_sound_time = 0     # 最后一次检测到声音的时间
-        
-    def set_audio_params(self, volume_threshold=None, silence_timeout=None):
-        """
-        设置音频参数
-        
-        Args:
-            volume_threshold: 音量阈值，0-32767之间的值
-            silence_timeout: 沉默超时时间(秒)
-        """
-        if volume_threshold is not None:
-            self.volume_threshold = max(0, min(32767, volume_threshold))
-        if silence_timeout is not None:
-            self.silence_timeout = max(0.1, silence_timeout)
-            
-    def _get_audio_volume(self, audio_data):
-        """
-        获取音频数据的音量
-        
-        Args:
-            audio_data: 二进制音频数据
-            
-        Returns:
-            float: 音频音量值
-        """
-        try:
-            # 将字节转换为16位整数数组
-            audio_array = np.frombuffer(audio_data, dtype=np.int16)
-            
-            if len(audio_array) == 0:
-                return 0.0
-                
-            # 计算音频的RMS值作为音量，使用float64避免溢出
-            square_sum = np.mean(np.square(audio_array.astype(np.float64)))
-            
-            # 确保非负值
-            if square_sum <= 0:
-                return 0.0
-                
-            return np.sqrt(square_sum)
-        except Exception as e:
-            self.logger.error(f"计算音频音量时出错: {e}")
-            return 0.0
         
     def set_server(self, host: str, port: int, use_ssl: bool = False) -> None:
         """
@@ -96,17 +49,17 @@ class STTClient:
         self.segment_callbacks.append(callback)
 
     async def record_microphone(self, websocket) -> None:
-        """从麦克风录制音频并发送到服务器"""
+        """
+        从麦克风录制音频并发送到服务器
+        
+        Args:
+            websocket: WebSocket连接
+        """
         FORMAT = pyaudio.paInt16
         CHANNELS = 1
         RATE = 16000
         CHUNK_MS = 60  # 每个音频块的毫秒数
         CHUNK = int(RATE / 1000 * CHUNK_MS)
-        
-        # 跟踪是否正在说话
-        is_speaking = False
-        has_sent_config = False
-        silence_start_time = 0
 
         p = pyaudio.PyAudio()
         stream = None
@@ -120,7 +73,7 @@ class STTClient:
                 input=True,
                 frames_per_buffer=CHUNK
             )
-            
+
             # 发送初始配置消息
             config = {
                 "mode": "2pass",
@@ -129,7 +82,7 @@ class STTClient:
                 "encoder_chunk_look_back": 4,
                 "decoder_chunk_look_back": 0,
                 "wav_name": "microphone",
-                "is_speaking": False,  # 默认先设为False，等检测到声音再开始
+                "is_speaking": True,
                 "hotwords": "",
                 "itn": True
             }
@@ -143,40 +96,8 @@ class STTClient:
                     stream.start_stream()
                     
                 data = stream.read(CHUNK, exception_on_overflow=False)
-                
-                # 计算当前音频块的音量
-                volume = self._get_audio_volume(data)
-                current_time = time.time()
-                
-                # 如果音量超过阈值，认为有效声音
-                if volume > self.volume_threshold:
-                    if not is_speaking:
-                        # 状态从不说话变为说话
-                        self.logger.debug(f"检测到有效声音: {volume:.2f}, 阈值: {self.volume_threshold}")
-                        is_speaking = True
-                        # 通知服务器开始说话
-                        config["is_speaking"] = True
-                        await websocket.send(json.dumps(config))
-                        
-                    # 更新最后检测到声音的时间
-                    self.last_sound_time = current_time
-                    
-                    # 发送音频数据
-                    if self.is_running:  # 避免在关闭后仍继续发送数据
-                        await websocket.send(data)
-                else:
-                    # 音量低于阈值，检查是否需要结束当前语音片段
-                    if is_speaking and (current_time - self.last_sound_time > self.silence_timeout):
-                        # 沉默超过timeout，认为说话结束
-                        self.logger.debug("检测到沉默超时，停止当前语音片段")
-                        is_speaking = False
-                        # 通知服务器停止说话
-                        config["is_speaking"] = False
-                        await websocket.send(json.dumps(config))
-                    elif is_speaking:
-                        # 虽然是沉默，但还在说话状态内，继续发送数据
-                        if self.is_running:
-                            await websocket.send(data)
+                if self.is_running:  # 避免在关闭后仍继续发送数据
+                    await websocket.send(data)
                     
                 await asyncio.sleep(0.01)
                 
@@ -188,7 +109,7 @@ class STTClient:
                 stream.close()
             p.terminate()
             self.logger.debug("已停止录音")
-    
+
     async def handle_messages(self, websocket) -> None:
         """
         处理服务器返回的消息
