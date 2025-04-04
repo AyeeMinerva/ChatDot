@@ -52,6 +52,31 @@ class TTSService:
         """
         return self.settings.get_setting("initialize")
     
+    def is_playing(self):
+        """
+        检查是否当前有TTS音频在播放
+        
+        Returns:
+            bool: 是否有音频在播放
+        """
+        #LoggerManager().get_logger().debug("检查是否有音频正在播放...")
+        if hasattr(self, '_text_buffer') and self._text_buffer:
+            return True  # 缓冲区有内容，视为正在播放
+        return player.is_playing() if hasattr(player, 'is_playing') else False
+
+    def stop_playing(self):
+        """
+        停止所有正在播放的TTS音频
+        """
+        # 清空缓冲区
+        LoggerManager().get_logger().debug("停止播放音频，清空缓冲区")
+        if hasattr(self, '_text_buffer'):
+            self._text_buffer = ""
+        if hasattr(self, '_processed_sentences'):
+            self._processed_sentences.clear()
+        # 停止播放器
+        player.stop()
+    
     def switch_gpt_model(self, weights_path: str):
         """
         切换GPT模型

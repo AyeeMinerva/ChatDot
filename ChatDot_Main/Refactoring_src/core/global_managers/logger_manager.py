@@ -14,7 +14,7 @@ class LoggerManager:
                     cls._instance._loggers = {}
         return cls._instance
 
-    def get_logger(self, name=None, level=logging.INFO):
+    def get_logger(self, name=None, level=logging.DEBUG):
         """
         获取一个logger实例。如果未指定名称，则自动识别调用者模块名称。
         :param name: 日志名称（可选）

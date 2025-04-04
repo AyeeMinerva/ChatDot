@@ -38,6 +38,10 @@ class AudioPlayer:
             self.play_thread.start()
             #LoggerManager().get_logger().debug("音频播放线程已启动")
 
+    def is_playing(self):
+        """检查是否有音频正在播放"""
+        return self.stream is not None and self.stream.is_active() or not self.audio_queue.empty()
+
     def stop(self):
         """停止播放"""
         self.stop_flag = True

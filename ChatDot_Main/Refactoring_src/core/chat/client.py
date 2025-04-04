@@ -92,9 +92,12 @@ class ChatClient:
                     # 检查是否需要停止生成
                     if self._is_Stop_generating:#实时打断
                         break
+                    
+                    #tts
                     if ttsenabled:
                         LoggerManager().get_logger().debug(f"实时播放文本到语音: {chunk}")
                         self.tts_service.realtime_play_text_to_speech(chunk)
+                        
                     yield chunk# 实时返回每个片段
             finally:
                 # 在迭代完成或发生异常时添加到历史
