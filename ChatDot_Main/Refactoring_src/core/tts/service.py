@@ -201,8 +201,8 @@ class TTSService:
         streaming_mode = self.settings.get_setting("streaming_mode")
 
         if not text_lang or not ref_audio_path or not prompt_lang or not prompt_text:
-            raise ValueError("TTS 设置不完整，请检查配置")
-
+            raise ValueError(f"TTS 设置不完整，当前缺失的参数：{', '.join([param for param in ['text_lang', 'ref_audio_path', 'prompt_lang', 'prompt_text'] if not self.settings.get_setting(param)])}")
+                             
         if streaming_mode:
             #LoggerManager().get_logger().debug("使用流式合成")
             return self.client.synthesize_stream(

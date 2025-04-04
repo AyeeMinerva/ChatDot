@@ -104,6 +104,7 @@ class Live2DService:
         更新设置并保存
         """
         self.settings.update_setting(key, value)
+        self.save_config()
         if key == "url":
             self.client.set_server_url(value)
         elif key == "initialize":
@@ -114,7 +115,6 @@ class Live2DService:
                 LoggerManager().get_logger().debug("正在禁用 Live2D 服务...")
                 self.client = None  # 清理客户端实例
                 self._initialized = False
-        self.save_config()
 
     def shutdown(self):
         """

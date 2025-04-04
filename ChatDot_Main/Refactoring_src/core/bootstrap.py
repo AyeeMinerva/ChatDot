@@ -6,6 +6,7 @@ from client.llm.service import LLMService
 from live2d.service import Live2DService
 from global_managers.logger_manager import LoggerManager
 from tts.service import TTSService
+from stt.service import STTService  # 导入STT服务
 
 class Bootstrap:
     """
@@ -45,7 +46,8 @@ class Bootstrap:
         # 按依赖顺序注册服务
         self._service_registry.extend([
             ("live2d_service", Live2DService),       # Live2D服务
-            ("tts_service", TTSService),                # TTS服务
+            ("tts_service", TTSService),             # TTS服务
+            ("stt_service", STTService),             # STT服务(添加这行)
             
             ("llm_service", LLMService),             # LLM服务
             ("context_handle_service", ContextHandleService),  # 上下文处理服务
