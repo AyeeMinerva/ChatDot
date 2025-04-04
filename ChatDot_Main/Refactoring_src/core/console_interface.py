@@ -24,6 +24,7 @@ class ConsoleInterface:
             'config': self.configure_llm,
             'live2d': self.configure_live2d,
             'tts': self.configure_tts,
+            'stt': self.configure_stt,
             'exit': lambda: print("退出程序...")
         }
 
@@ -63,6 +64,7 @@ class ConsoleInterface:
         print("config  - 配置LLM服务")
         print("live2d  - 配置Live2D服务")
         print("tts     - 配置TTS服务")
+        print("stt     - 配置STT服务")
         print("exit    - 退出程序")
     
     def chat_mode(self):
@@ -557,6 +559,181 @@ class ConsoleInterface:
             # 操作后暂停一下
             input("\n按回车键继续...")
 
+    def configure_stt(self):
+        """配置STT(语音转文本)服务"""
+        # 获取STT服务
+        stt_service = self.service_manager.get_service("stt_service")
+        
+        # 检查是否有可用的麦克风
+        if not self._check_available_microphone():
+            print("错误: 未检测到可用的麦克风设备，无法使用STT功能")
+            return
+        
+        while True:
+            print("\nSTT配置:")
+            print("1. 在聊天中启用/禁用STT")
+            print("2. 配置STT服务器设置")
+            print("3. 测试STT功能")
+            print("4. 返回主菜单")
+            
+            choice = input("请选择 (1-4): ").strip()
+            
+            if choice == "1":
+                self._toggle_stt_in_chat(stt_service)
+            elif choice == "2":
+                self._configure_stt_server(stt_service)
+            elif choice == "3":
+                self._test_stt(stt_service)
+            elif choice == "4":
+                break
+            else:
+                print("无效的选择，请重试")
+
+    def _check_available_microphone(self):
+        """检查是否有可用的麦克风设备"""
+        try:
+            import pyaudio
+            p = pyaudio.PyAudio()
+            input_devices = 0
+            
+            for i in range(p.get_device_count()):
+                device_info = p.get_device_info_by_index(i)
+                if device_info.get('maxInputChannels') > 0:
+                    input_devices += 1
+                    
+            p.terminate()
+            return input_devices > 0
+        except Exception as e:
+            print(f"检查麦克风设备时出错: {e}")
+            return False
+
+    def _toggle_stt_in_chat(self, stt_service):
+        """启用或禁用聊天中的STT功能"""
+        # 获取当前状态
+        current_status = stt_service.settings.get_setting("enabled")
+        new_status = not current_status
+        
+        # 更新设置
+        stt_service.settings.update_setting("enabled", new_status)
+        status_str = "启用" if new_status else "禁用"
+        print(f"聊天中的STT功能已{status_str}")
+        
+        # 保存配置
+        stt_service.save_config()
+
+    def _configure_stt_server(self, stt_service):
+        """配置STT服务器设置"""
+        print("\nSTT服务器配置:")
+        
+        # 获取当前设置
+        current_host = stt_service.settings.get_setting("host")
+        current_port = stt_service.settings.get_setting("port")
+        current_local = stt_service.settings.get_setting("use_local_server")
+        current_auto = stt_service.settings.get_setting("auto_start_server")
+        
+        print(f"当前设置:")
+        print(f"- 服务器地址: {current_host}")
+        print(f"- 服务器端口: {current_port}")
+        print(f"- 使用本地服务器: {current_local}")
+        print(f"- 自动启动服务器: {current_auto}")
+        
+        # 选择服务器类型
+        server_choice = input("\n选择服务器类型:\n1. 本地服务器 (localhost)\n2. 远程服务器\n请输入选择 (默认1): ")
+        
+        if server_choice == "2":
+            # 配置远程服务器
+            host = input(f"请输入服务器地址 (当前: {current_host}): ").strip() or current_host
+            port = input(f"请输入服务器端口 (当前: {current_port}): ").strip()
+            
+            try:
+                port = int(port) if port else current_port
+                stt_service.update_server_config(
+                    host=host, 
+                    port=port,
+                    use_local_server=False
+                )
+                print(f"服务器设置已更新: {host}:{port} (远程服务器)")
+            except ValueError:
+                print("端口必须是数字")
+        else:
+            # 配置本地服务器
+            port = input(f"请输入服务器端口 (当前: {current_port}): ").strip()
+            auto_start = input(f"是否自动启动服务器 (y/n, 当前: {'y' if current_auto else 'n'}): ").strip().lower()
+            
+            try:
+                port = int(port) if port else current_port
+                auto_start = auto_start in ('y', 'yes', 'true', '1') if auto_start else current_auto
+                
+                stt_service.update_server_config(
+                    host="localhost", 
+                    port=port,
+                    use_local_server=True,
+                    auto_start_server=auto_start
+                )
+                print(f"服务器设置已更新: localhost:{port} (本地服务器, 自动启动: {auto_start})")
+            except ValueError:
+                print("端口必须是数字")
+
+    def _test_stt(self, stt_service):
+        """测试STT功能"""
+        try:
+            print("\n开始STT测试...")
+            print("正在初始化STT服务...")
+            
+            # 获取或创建事件循环
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    print("检测到正在运行的事件循环，无法启动测试")
+                    return
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            if not loop.run_until_complete(stt_service.initialize_async()):
+                print("STT服务初始化失败，请检查配置")
+                return
+            
+            # 定义识别回调
+            def segment_callback(text):
+                print(f"\n识别结果: {text}")
+                
+            stt_service.add_segment_callback(segment_callback)
+            
+            # 启动识别
+            if not loop.run_until_complete(stt_service.start_recognition_async()):
+                print("启动语音识别失败")
+                return
+            
+            print("\n开始语音识别，请说话...")
+            print("按'q'退出测试")
+            
+            # 等待用户按q退出
+            while True:
+                if msvcrt.kbhit():
+                    key = msvcrt.getch().decode().lower()
+                    if key == 'q':
+                        break
+                time.sleep(0.1)
+                    
+        except Exception as e:
+            print(f"测试过程中出错: {e}")
+        finally:
+            # 确保服务被正确关闭
+            try:
+                # 停止识别并关闭服务
+                print("\n关闭服务...")
+                if 'loop' in locals() and not loop.is_closed():
+                    loop.run_until_complete(stt_service.stop_recognition_async())
+                    loop.run_until_complete(stt_service.shutdown_async())
+                    # 不要关闭主事件循环
+                    if loop != asyncio.get_event_loop():
+                        loop.close()
+                print("STT测试已停止")
+            except Exception as e:
+                print(f"关闭服务时出错: {e}")
+                
 if __name__ == "__main__":
     interface = ConsoleInterface()
     interface.run()
