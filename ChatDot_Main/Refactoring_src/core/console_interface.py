@@ -5,7 +5,6 @@ from global_managers.logger_manager import LoggerManager
 import shutil
 import sys
 import msvcrt
-import time
 
 class ConsoleInterface:
     """控制台交互界面"""
@@ -25,7 +24,6 @@ class ConsoleInterface:
             'config': self.configure_llm,
             'live2d': self.configure_live2d,
             'tts': self.configure_tts,
-            'stt': self.configure_stt,
             'exit': lambda: print("退出程序...")
         }
 
@@ -65,171 +63,56 @@ class ConsoleInterface:
         print("config  - 配置LLM服务")
         print("live2d  - 配置Live2D服务")
         print("tts     - 配置TTS服务")
-        print("stt     - 配置STT服务")
         print("exit    - 退出程序")
     
     def chat_mode(self):
         """进入聊天模式"""
         chat_service = self.service_manager.get_service("chat_service")
         context_service = self.service_manager.get_service("context_handle_service")
-        stt_service = self.service_manager.get_service("stt_service")
-        
         print("\n进入聊天模式 (输入 'q' 返回主菜单，输入'open regex'启用正则表达式过滤)")
         
         # 默认不启用过滤
         use_filter = False
-        # 检查是否启用STT
-        stt_enabled = stt_service.settings.get_setting("enabled")
-        stt_initialized = False
         
-        # 标记STT处理状态，但不做去重
-        stt_processing = False
-        
-        # 创建共享的事件循环
-        import asyncio
-        # 尝试获取当前循环，如果没有则创建新循环
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        if stt_enabled:
-            print("STT功能已启用，正在初始化语音识别...")
+        while True:
+            user_input = input("\n用户: ")
+            if user_input.lower() == 'q':
+                break
+                
+            # 检查是否切换过滤模式
+            if user_input.lower() == "open regex":
+                use_filter = not use_filter
+                mode_str = "已启用" if use_filter else "已禁用"
+                print(f"正则表达式过滤 {mode_str}")
+                continue
             
-            # 初始化STT服务
-            if loop.run_until_complete(stt_service.initialize_async()):
-                # 定义回调函数处理语音识别结果
-                def on_stt_segment(text):
-                    nonlocal stt_processing
-                    
-                    # 如果正在处理STT输入，忽略新的输入
-                    if stt_processing:
-                        return
-                    
-                    try:
-                        # 标记为正在处理
-                        stt_processing = True
-                        
-                        if chat_service.is_generating:
-                            # 如果正在生成回答，中断当前生成
-                            chat_service.stop_generating()
-                            print("\n[STT输入]: " + text)
-                            # 使用新识别的文本处理
-                            self._process_chat_input(text, chat_service, context_service, use_filter)
-                        else:
-                            # 没有生成中的回答，直接作为新输入
-                            print("\n[STT输入]: " + text)
-                            self._process_chat_input(text, chat_service, context_service, use_filter)
-                    finally:
-                        # 处理完成，重置状态
-                        stt_processing = False
-                
-                # 添加回调
-                stt_service.add_segment_callback(on_stt_segment)
-                
-                # 启动语音识别
-                if loop.run_until_complete(stt_service.start_recognition_async()):
-                    print("语音识别已启动，可以开始语音输入")
-                    stt_initialized = True
-                else:
-                    print("启动语音识别失败，STT功能已禁用")
-            else:
-                print("STT服务初始化失败，STT功能已禁用")
-        
-        try:
-            while True:
-                user_input = input("\n用户: ")
-                if user_input.lower() == 'q':
-                    break
-                    
-                # 检查是否切换过滤模式
-                if user_input.lower() == "open regex":
-                    use_filter = not use_filter
-                    mode_str = "已启用" if use_filter else "已禁用"
-                    print(f"正则表达式过滤 {mode_str}")
-                    continue
-                
-                self._process_chat_input(user_input, chat_service, context_service, use_filter)
-        except KeyboardInterrupt:
-            print("\n用户中断")
-        finally:
-            # 如果STT已初始化，关闭它
-            if stt_enabled and stt_initialized:
-                try:
-                    print("关闭语音识别服务...")
-                    # 使用已存在的循环，而不是创建新循环
-                    loop.run_until_complete(stt_service.stop_recognition_async())
-                    loop.run_until_complete(stt_service.shutdown_async())
-                except Exception as e:
-                    print(f"关闭语音识别服务时出错: {e}")
-
-    def _process_chat_input(self, user_input, chat_service, context_service, use_filter):
-        """处理聊天输入并获取响应"""
-        # 获取TTS服务
-        tts_service = self.service_manager.get_service("tts_service")
-        
-        try:
-            if not use_filter:
-                # 不过滤，直接流式输出
-                response_iterator = chat_service.send_message(user_input, is_stream=True)
-                
-                # 创建一个标志，用于跟踪是否需要中断生成
-                should_interrupt = False
-                
-                # 使用try-except处理可能为空的迭代器
-                try:
+            try:
+                if not use_filter:
+                    # 不过滤，直接流式输出
+                    response_iterator = chat_service.send_message(user_input, is_stream=True)
+                    # 等待第一个响应后再打印"助手: "
                     first_chunk = next(response_iterator)
                     print("助手: " + first_chunk, end='', flush=True)
+                    for chunk in response_iterator:
+                        # 检查是否按下 ESC 键
+                        if msvcrt.kbhit() and msvcrt.getch() == b'\x1b':
+                            chat_service.stop_generating()
+                            print("\n[已打断]", end='', flush=True)
+                            break
+                        print(chunk, end='', flush=True)
+                    print()  # 打印换行
+                else:
+                    # 启用过滤，显示处理后的完整文本
+                    accumulated_text = ""
+                    chunk_count = 0
+                    response_iterator = chat_service.send_message(user_input, is_stream=True)
                     
                     for chunk in response_iterator:
                         # 检查是否按下 ESC 键
-                        if msvcrt.kbhit():
-                            key = msvcrt.getch()
-                            if key == b'\x1b':  # ESC键
-                                should_interrupt = True
-                                chat_service.stop_generating()
-                                # 同时停止TTS播放
-                                if tts_service.settings.get_setting("initialize"):
-                                    tts_service.realtime_play_text_to_speech(force_process=True)
-                                print("\n[已打断]", end='', flush=True)
-                                break
-                        print(chunk, end='', flush=True)
-                        
-                        # 对于启用了TTS的情况，实时处理TTS
-                        if tts_service.settings.get_setting("initialize"):
-                            tts_service.realtime_play_text_to_speech(chunk, force_process=False)
-                            
-                    # 如果没有被打断，最后处理剩余TTS内容
-                    if not should_interrupt and tts_service.settings.get_setting("initialize"):
-                        tts_service.realtime_play_text_to_speech(force_process=True)
-                    print()  # 打印换行
-                except StopIteration:
-                    # 空迭代器，不做处理
-                    print("助手: 我无法处理这个请求。")
-                
-            else:
-                # 启用过滤，显示处理后的完整文本
-                accumulated_text = ""
-                chunk_count = 0
-                response_iterator = chat_service.send_message(user_input, is_stream=True)
-                
-                # 创建一个标志，用于跟踪是否需要中断生成
-                should_interrupt = False
-                
-                try:
-                    for chunk in response_iterator:
-                        # 检查是否按下 ESC 键
-                        if msvcrt.kbhit():
-                            key = msvcrt.getch()
-                            if key == b'\x1b':  # ESC键
-                                should_interrupt = True
-                                chat_service.stop_generating()
-                                # 同时停止TTS播放
-                                if tts_service.settings.get_setting("initialize"):
-                                    tts_service.realtime_play_text_to_speech(force_process=True)
-                                print("\n[已打断]")
-                                break
+                        if msvcrt.kbhit() and msvcrt.getch() == b'\x1b':
+                            chat_service.stop_generating()
+                            print("\n[已打断]")
+                            break
                         
                         accumulated_text += chunk
                         chunk_count += 1
@@ -238,19 +121,8 @@ class ConsoleInterface:
                         processed_text = context_service.get_current_handler().process_before_show(accumulated_text)
                         print(f"[chunk {chunk_count}] {processed_text}")
                         
-                        # 对于启用了TTS的情况，实时处理TTS
-                        if tts_service.settings.get_setting("initialize"):
-                            tts_service.realtime_play_text_to_speech(chunk, force_process=False)
-                    
-                    # 如果没有被打断，最后处理剩余TTS内容
-                    if not should_interrupt and tts_service.settings.get_setting("initialize"):
-                        tts_service.realtime_play_text_to_speech(force_process=True)
-                except StopIteration:
-                    # 空迭代器，不做处理
-                    if chunk_count == 0:
-                        print("助手: 我无法处理这个请求。")
-        except Exception as e:
-            print(f"\n错误: {str(e)}")
+            except Exception as e:
+                print(f"\n错误: {str(e)}")
 
     def list_handlers(self):
         """列出所有可用的上下文处理器"""
@@ -428,6 +300,8 @@ class ConsoleInterface:
             elif choice == "4":
                 break
 
+
+    #region 配置 Live2D 服务
     def configure_live2d(self):
         """配置 Live2D 服务"""
         live2d_service = self.service_manager.get_service("live2d_service")
@@ -452,7 +326,9 @@ class ConsoleInterface:
             return
         else:
             print("无效的选择，请重试")
+    #endregion
     
+    #region 配置 TTS 服务
     def configure_tts(self):
         """配置 TTS 服务"""
         tts_service = self.service_manager.get_service("tts_service")
@@ -580,6 +456,8 @@ class ConsoleInterface:
             print("音频播放完成")
         except Exception as e:
             print(f"TTS 测试失败: {e}")
+    #endregion
+
 
     def _manage_tts_presets(self, tts_service):
         """管理 TTS 预设角色"""
@@ -679,181 +557,6 @@ class ConsoleInterface:
             # 操作后暂停一下
             input("\n按回车键继续...")
 
-    def configure_stt(self):
-        """配置STT(语音转文本)服务"""
-        # 获取STT服务
-        stt_service = self.service_manager.get_service("stt_service")
-        
-        # 检查是否有可用的麦克风
-        if not self._check_available_microphone():
-            print("错误: 未检测到可用的麦克风设备，无法使用STT功能")
-            return
-        
-        while True:
-            print("\nSTT配置:")
-            print("1. 在聊天中启用/禁用STT")
-            print("2. 配置STT服务器设置")
-            print("3. 测试STT功能")
-            print("4. 返回主菜单")
-            
-            choice = input("请选择 (1-4): ").strip()
-            
-            if choice == "1":
-                self._toggle_stt_in_chat(stt_service)
-            elif choice == "2":
-                self._configure_stt_server(stt_service)
-            elif choice == "3":
-                self._test_stt(stt_service)
-            elif choice == "4":
-                break
-            else:
-                print("无效的选择，请重试")
-
-    def _check_available_microphone(self):
-        """检查是否有可用的麦克风设备"""
-        try:
-            import pyaudio
-            p = pyaudio.PyAudio()
-            input_devices = 0
-            
-            for i in range(p.get_device_count()):
-                device_info = p.get_device_info_by_index(i)
-                if device_info.get('maxInputChannels') > 0:
-                    input_devices += 1
-                    
-            p.terminate()
-            return input_devices > 0
-        except Exception as e:
-            print(f"检查麦克风设备时出错: {e}")
-            return False
-
-    def _toggle_stt_in_chat(self, stt_service):
-        """启用或禁用聊天中的STT功能"""
-        # 获取当前状态
-        current_status = stt_service.settings.get_setting("enabled")
-        new_status = not current_status
-        
-        # 更新设置
-        stt_service.settings.update_setting("enabled", new_status)
-        status_str = "启用" if new_status else "禁用"
-        print(f"聊天中的STT功能已{status_str}")
-        
-        # 保存配置
-        stt_service.save_config()
-
-    def _configure_stt_server(self, stt_service):
-        """配置STT服务器设置"""
-        print("\nSTT服务器配置:")
-        
-        # 获取当前设置
-        current_host = stt_service.settings.get_setting("host")
-        current_port = stt_service.settings.get_setting("port")
-        current_local = stt_service.settings.get_setting("use_local_server")
-        current_auto = stt_service.settings.get_setting("auto_start_server")
-        
-        print(f"当前设置:")
-        print(f"- 服务器地址: {current_host}")
-        print(f"- 服务器端口: {current_port}")
-        print(f"- 使用本地服务器: {current_local}")
-        print(f"- 自动启动服务器: {current_auto}")
-        
-        # 选择服务器类型
-        server_choice = input("\n选择服务器类型:\n1. 本地服务器 (localhost)\n2. 远程服务器\n请输入选择 (默认1): ")
-        
-        if server_choice == "2":
-            # 配置远程服务器
-            host = input(f"请输入服务器地址 (当前: {current_host}): ").strip() or current_host
-            port = input(f"请输入服务器端口 (当前: {current_port}): ").strip()
-            
-            try:
-                port = int(port) if port else current_port
-                stt_service.update_server_config(
-                    host=host, 
-                    port=port,
-                    use_local_server=False
-                )
-                print(f"服务器设置已更新: {host}:{port} (远程服务器)")
-            except ValueError:
-                print("端口必须是数字")
-        else:
-            # 配置本地服务器
-            port = input(f"请输入服务器端口 (当前: {current_port}): ").strip()
-            auto_start = input(f"是否自动启动服务器 (y/n, 当前: {'y' if current_auto else 'n'}): ").strip().lower()
-            
-            try:
-                port = int(port) if port else current_port
-                auto_start = auto_start in ('y', 'yes', 'true', '1') if auto_start else current_auto
-                
-                stt_service.update_server_config(
-                    host="localhost", 
-                    port=port,
-                    use_local_server=True,
-                    auto_start_server=auto_start
-                )
-                print(f"服务器设置已更新: localhost:{port} (本地服务器, 自动启动: {auto_start})")
-            except ValueError:
-                print("端口必须是数字")
-
-    def _test_stt(self, stt_service):
-        """测试STT功能"""
-        try:
-            print("\n开始STT测试...")
-            print("正在初始化STT服务...")
-            
-            # 获取或创建事件循环
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    print("检测到正在运行的事件循环，无法启动测试")
-                    return
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            if not loop.run_until_complete(stt_service.initialize_async()):
-                print("STT服务初始化失败，请检查配置")
-                return
-            
-            # 定义识别回调
-            def segment_callback(text):
-                print(f"\n识别结果: {text}")
-                
-            stt_service.add_segment_callback(segment_callback)
-            
-            # 启动识别
-            if not loop.run_until_complete(stt_service.start_recognition_async()):
-                print("启动语音识别失败")
-                return
-            
-            print("\n开始语音识别，请说话...")
-            print("按'q'退出测试")
-            
-            # 等待用户按q退出
-            while True:
-                if msvcrt.kbhit():
-                    key = msvcrt.getch().decode().lower()
-                    if key == 'q':
-                        break
-                time.sleep(0.1)
-                    
-        except Exception as e:
-            print(f"测试过程中出错: {e}")
-        finally:
-            # 确保服务被正确关闭
-            try:
-                # 停止识别并关闭服务
-                print("\n关闭服务...")
-                if 'loop' in locals() and not loop.is_closed():
-                    loop.run_until_complete(stt_service.stop_recognition_async())
-                    loop.run_until_complete(stt_service.shutdown_async())
-                    # 不要关闭主事件循环
-                    if loop != asyncio.get_event_loop():
-                        loop.close()
-                print("STT测试已停止")
-            except Exception as e:
-                print(f"关闭服务时出错: {e}")
-                
 if __name__ == "__main__":
     interface = ConsoleInterface()
     interface.run()

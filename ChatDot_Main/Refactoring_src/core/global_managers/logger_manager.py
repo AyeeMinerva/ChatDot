@@ -8,10 +8,6 @@ class LoggerManager:
 
     def __new__(cls, *args, **gkwargs):
         if not cls._instance:
-            #设置日志级别
-            #logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            #logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            #
             with cls._lock:
                 if not cls._instance:
                     cls._instance = super(LoggerManager, cls).__new__(cls)

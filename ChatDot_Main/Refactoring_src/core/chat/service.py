@@ -11,8 +11,6 @@ class ChatService:
         self.settings = ChatSettings()
         self.persistence = ChatPersistence()
         self.client = None
-        # 添加生成状态跟踪属性
-        self.is_generating = False
 
     def initialize(self):
         """初始化服务"""
@@ -38,28 +36,15 @@ class ChatService:
         Returns:
             Iterator[str]: 响应迭代器
         """
-        # 设置生成状态为True
-        self.is_generating = True
-        
         local_messages, response_iter = self.client.send_message(message, is_stream)
         
-        # 包装响应迭代器以在完成时更新状态
-        def wrapped_iterator():
-            try:
-                for chunk in response_iter:
-                    yield chunk
-            finally:
-                self.is_generating = False
-        
-        # 返回包装后的迭代器
-        return wrapped_iterator()
+        # 将响应迭代器直接返回给调用者
+        return response_iter
     
     def stop_generating(self):
         """停止当前生成过程"""
         if self.client:
             self.client.stop_generating()
-            # 更新生成状态
-            self.is_generating = False
 
     def clear_context(self):
         """清空上下文"""
