@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt5.QtCore import Qt, pyqtSignal
 import os
 import json
+import subprocess
+import sys
 
 class VoiceSettingsPage(QWidget):
     """语音设置页面，包括TTS和STT设置"""
@@ -19,9 +21,22 @@ class VoiceSettingsPage(QWidget):
         self.config_dir = os.path.join(os.path.expanduser("~"), ".chatdot")
         self.voice_config_path = os.path.join(self.config_dir, "voice_settings.json")
         
+        # 敏感配置备份目录
+        self.backup_dir = os.path.join(self.config_dir, "secrets_backup")
+        
         # 确保配置目录存在
         if not os.path.exists(self.config_dir):
             os.makedirs(self.config_dir)
+        
+        # 确保备份目录存在
+        if not os.path.exists(self.backup_dir):
+            os.makedirs(self.backup_dir)
+        
+        # 设置工具脚本路径
+        self.sync_tool_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                          "utils", "sync_secret_files_tools", "sync_secrets.py")
+        self.restore_tool_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                             "utils", "sync_secret_files_tools", "restore_secrets.py")
         
         self.initUI()
         self.load_settings_from_file()  # 从文件加载设置
@@ -99,6 +114,19 @@ class VoiceSettingsPage(QWidget):
         stt_layout.addLayout(stt_form)
         stt_group.setLayout(stt_layout)
         layout.addWidget(stt_group)
+        
+        # 配置同步按钮
+        sync_layout = QHBoxLayout()
+        
+        self.backup_config_btn = QPushButton("备份敏感配置")
+        self.backup_config_btn.clicked.connect(self.backup_config)
+        sync_layout.addWidget(self.backup_config_btn)
+        
+        self.restore_config_btn = QPushButton("恢复敏感配置")
+        self.restore_config_btn.clicked.connect(self.restore_config)
+        sync_layout.addWidget(self.restore_config_btn)
+        
+        layout.addLayout(sync_layout)
         
         # 添加一些弹性空间
         layout.addStretch()
@@ -202,12 +230,72 @@ class VoiceSettingsPage(QWidget):
                 }
             }
             
-            # 保存到文件
+            # 创建一个名为SECRET_voice_settings.json的文件
+            secret_path = os.path.join(os.path.dirname(self.voice_config_path), "SECRET_voice_settings.json")
+            with open(secret_path, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
+                
+            # 同时保存到普通配置文件（不含敏感信息版本）
+            # 这里可以移除一些敏感字段，如API密钥等
             with open(self.voice_config_path, 'w', encoding='utf-8') as f:
                 json.dump(settings, f, ensure_ascii=False, indent=2)
                 
         except Exception as e:
             QMessageBox.warning(self, "保存设置失败", f"无法将设置保存到文件: {str(e)}")
+    
+    def backup_config(self):
+        """备份敏感配置到安全位置"""
+        try:
+            # 确保设置已保存
+            self.on_settings_changed()
+            
+            # 调用同步工具将敏感文件同步到备份目录
+            python_executable = sys.executable
+            command = [python_executable, self.sync_tool_path, self.config_dir, self.backup_dir]
+            
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = process.communicate()
+            
+            if process.returncode == 0:
+                QMessageBox.information(self, "备份成功", "敏感配置文件已成功备份")
+            else:
+                QMessageBox.warning(self, "备份失败", f"无法备份配置文件: {stderr}")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "备份错误", f"备份过程中发生错误: {str(e)}")
+    
+    def restore_config(self):
+        """从备份位置恢复敏感配置"""
+        try:
+            # 检查备份目录是否存在
+            if not os.path.exists(self.backup_dir) or not os.listdir(self.backup_dir):
+                QMessageBox.warning(self, "恢复失败", "没有找到备份文件")
+                return
+            
+            # 确认用户意图
+            reply = QMessageBox.question(self, "确认恢复", 
+                                       "恢复操作将覆盖当前的配置文件。是否继续？",
+                                       QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            
+            if reply != QMessageBox.Yes:
+                return
+            
+            # 调用恢复工具从备份目录恢复文件
+            python_executable = sys.executable
+            command = [python_executable, self.restore_tool_path, self.backup_dir, self.config_dir]
+            
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = process.communicate()
+            
+            if process.returncode == 0:
+                QMessageBox.information(self, "恢复成功", "敏感配置文件已成功恢复")
+                # 重新加载设置
+                self.load_settings_from_file()
+            else:
+                QMessageBox.warning(self, "恢复失败", f"无法恢复配置文件: {stderr}")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "恢复错误", f"恢复过程中发生错误: {str(e)}")
     
     def load_settings(self):
         """从服务加载设置"""
