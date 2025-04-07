@@ -1,1 +1,0 @@
-对于私有prompt,请使用如`SECRET_defaultPrompt.py`的文件名以避免被git追踪
