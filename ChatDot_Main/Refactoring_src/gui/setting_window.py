@@ -6,6 +6,7 @@ from gui.settings.llm_connection_settings import LLMConnectionSettingsPage
 from gui.settings.model_params_settings import ModelParamsSettingsPage
 from gui.settings.prompt_settings import PromptSettingsPage
 from gui.settings.history_settings import HistorySettingsPage
+from gui.settings.voice_settings import VoiceSettingsPage
 from core.bootstrap import Bootstrap
 from core.global_managers.service_manager import ServiceManager  # 导入服务管理器
 
@@ -37,6 +38,8 @@ class SettingWindow(QDialog):
         self.floating_ball_settings_page = FloatingBallSettingsPage(floating_ball)
         self.model_params_settings_page = ModelParamsSettingsPage()
         self.prompt_settings_page = PromptSettingsPage(self.service_manager)
+        self.voice_settings_page = VoiceSettingsPage(self.service_manager)
+        # self.live2d_settings_page = Live2DSettingsPage(self.service_manager)
         self.history_settings_page = HistorySettingsPage()
         self.initUI()
         self.load_user_settings()  # 打开设置时加载用户设置
@@ -75,6 +78,8 @@ class SettingWindow(QDialog):
         self.tab_widget.addTab(self.model_params_settings_page, "模型参数")
         self.tab_widget.addTab(self.prompt_settings_page, "对话处理")
         self.tab_widget.addTab(self.history_settings_page, "历史记录")
+        self.tab_widget.addTab(self.voice_settings_page, "语音设置")
+        # self.tab_widget.addTab(self.live2d_settings_page, "Live2D")
         main_layout.addWidget(self.tab_widget)
 
         self.setLayout(main_layout)
@@ -93,6 +98,9 @@ class SettingWindow(QDialog):
 
         # 连接历史记录加载信号
         self.history_settings_page.load_history_requested.connect(self.handle_load_history)
+
+        self.voice_settings_page.settings_changed.connect(self.auto_save_settings)
+        # self.live2d_settings_page.settings_changed.connect(self.auto_save_settings)
 
     def load_user_settings(self):
         """从核心服务加载用户设置"""

@@ -35,6 +35,69 @@ class ChatThread(QThread):
     def stop(self):
         self.is_running = False
 
+# 添加STT处理线程
+class STTThread(QThread):
+    """语音识别线程"""
+    text_recognized = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+    
+    def __init__(self, stt_service):
+        super().__init__()
+        self.stt_service = stt_service
+        self.is_running = True
+    
+    def run(self):
+        import asyncio
+        
+        # 识别结果回调
+        def on_segment_recognized(text):
+            if self.is_running:
+                self.text_recognized.emit(text)
+        
+        async def run_recognition():
+            try:
+                # 初始化STT服务
+                if not await self.stt_service.initialize_async():
+                    self.error_occurred.emit("无法初始化语音识别服务")
+                    return
+                
+                # 设置回调
+                self.stt_service.segment_callbacks = []
+                self.stt_service.add_segment_callback(on_segment_recognized)
+                
+                # 开始识别
+                if not await self.stt_service.start_recognition_async():
+                    self.error_occurred.emit("启动语音识别失败")
+                    return
+                
+                # 等待停止信号
+                while self.is_running:
+                    await asyncio.sleep(0.1)
+                    
+            except Exception as e:
+                self.error_occurred.emit(f"语音识别过程中出错: {str(e)}")
+            finally:
+                # 确保服务正确关闭
+                try:
+                    await self.stt_service.stop_recognition_async()
+                    await self.stt_service.shutdown_async()
+                except Exception as e:
+                    self.error_occurred.emit(f"关闭语音识别服务时出错: {str(e)}")
+        
+        # 创建新的事件循环
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            loop.run_until_complete(run_recognition())
+        finally:
+            loop.close()
+    
+    def stop(self):
+        """停止语音识别线程"""
+        self.is_running = False
+        self.wait()  # 等待线程结束
+
 class ChatWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -146,14 +209,99 @@ class ChatWindow(QMainWindow):
             "border: 1px solid rgba(200, 200, 200, 150); }"
         )
 
+        # 语音输入按钮
+        self.voice_button = QPushButton("🎤", self)
+        self.voice_button.setToolTip("语音输入")
+        self.voice_button.setFixedSize(30, 30)
+        self.voice_button.clicked.connect(self.toggle_voice_input)
+        self.voice_button.setStyleSheet(
+            "QPushButton { background: rgba(220, 220, 220, 150); border-radius: 15px; }"
+            "QPushButton:hover { background: rgba(200, 200, 200, 200); }"
+            "QPushButton:pressed { background: rgba(180, 180, 180, 200); }"
+        )
+
         # 发送按钮
         self.send_button = QPushButton("发送", self)
         self.send_button.clicked.connect(self.send_message)
-        self.send_button.hide()  # 默认隐藏发送按钮
-
+        
         # 添加到布局
         self.user_input_layout.addWidget(self.user_input)
+        self.user_input_layout.addWidget(self.voice_button)
+        self.user_input_layout.addWidget(self.send_button)
         self.layout.addLayout(self.user_input_layout)
+
+        # 初始化语音输入状态
+        self.is_voice_active = False
+        self.speech_thread = None
+
+    def toggle_voice_input(self):
+        """切换语音输入模式"""
+        stt_service = self.service_manager.get_service("stt_service")
+        
+        # 检查STT是否启用
+        if not stt_service.settings.get_setting("enabled"):
+            QMessageBox.warning(self, "STT未启用", "请在设置中启用语音识别功能")
+            return
+        
+        if self.is_voice_active:
+            # 停止语音输入
+            self.stop_voice_input()
+        else:
+            # 开始语音输入
+            self.start_voice_input()
+
+    def start_voice_input(self):
+        """开始语音输入"""
+        stt_service = self.service_manager.get_service("stt_service")
+        
+        # 设置按钮为激活状态
+        self.voice_button.setStyleSheet(
+            "QPushButton { background: rgba(255, 100, 100, 200); border-radius: 15px; }"
+            "QPushButton:hover { background: rgba(255, 80, 80, 220); }"
+        )
+        self.voice_button.setText("■")
+        self.voice_button.setToolTip("停止语音输入")
+        self.user_input.setPlaceholderText("正在听取语音...")
+        self.is_voice_active = True
+        
+        # 创建并启动语音识别线程
+        self.speech_thread = STTThread(stt_service)
+        self.speech_thread.text_recognized.connect(self.on_speech_recognized)
+        self.speech_thread.error_occurred.connect(self.on_speech_error)
+        self.speech_thread.start()
+
+    def stop_voice_input(self):
+        """停止语音输入"""
+        # 还原按钮状态
+        self.voice_button.setStyleSheet(
+            "QPushButton { background: rgba(220, 220, 220, 150); border-radius: 15px; }"
+            "QPushButton:hover { background: rgba(200, 200, 200, 200); }"
+            "QPushButton:pressed { background: rgba(180, 180, 180, 200); }"
+        )
+        self.voice_button.setText("🎤")
+        self.voice_button.setToolTip("语音输入")
+        self.user_input.setPlaceholderText("请输入消息...")
+        self.is_voice_active = False
+        
+        # 停止语音识别线程
+        if self.speech_thread and self.speech_thread.isRunning():
+            self.speech_thread.stop()
+
+    def on_speech_recognized(self, text):
+        """当识别到语音时的回调"""
+        if text:
+            self.user_input.setText(text)
+            # 如果识别结果有意义，自动发送
+            if len(text) > 3:  # 简单过滤太短的结果
+                self.send_message()
+            else:
+                # 短结果可能是错误识别，显示但不自动发送
+                self.stop_voice_input()
+
+    def on_speech_error(self, error_message):
+        """语音识别错误的回调"""
+        QMessageBox.warning(self, "语音识别错误", error_message)
+        self.stop_voice_input()
 
     def send_message(self, retry=False):
         if not retry:

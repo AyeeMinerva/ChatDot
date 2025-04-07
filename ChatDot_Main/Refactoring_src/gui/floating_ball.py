@@ -1,5 +1,5 @@
 import sys, math
-from PyQt5.QtWidgets import QWidget, QMenu, QAction, QApplication
+from PyQt5.QtWidgets import QWidget, QMenu, QAction, QApplication, QMessageBox
 from PyQt5.QtGui import QPainter, QColor, QBrush, QRadialGradient
 from PyQt5.QtCore import Qt, QPoint, QRectF
 
@@ -23,12 +23,27 @@ class FloatingBall(QWidget):
         self.bootstrap = Bootstrap()
         self.bootstrap.initialize()
         self.service_manager = self.bootstrap.service_manager
+        self.service_manager.get_service("live2d_service").update_setting("initialize", False)
+        self.clear_chat_history()
 
         self.chat_window = ChatWindow(self)  # 保存 ChatWindow 实例
         self.setting_window = None
         self.initUI()
         self.drag_start_position = None
         self.dragging = False
+
+    def clear_chat_history(self):
+        """启动时清除聊天记录"""
+        try:
+            # 使用chat_service清除上下文和记录
+            chat_service = self.service_manager.get_service("chat_service")
+            chat_service.clear_context()
+            
+            # 如果聊天窗口已加载，也清除其UI
+            if hasattr(self, 'chat_window') and self.chat_window:
+                self.chat_window.clear_context()
+        except Exception as e:
+            print(f"清除聊天记录时发生错误: {str(e)}")
 
     def setColor(self, color):
         self.ball_color = color
@@ -230,8 +245,27 @@ class FloatingBall(QWidget):
             context_menu.addAction(stop_action)
         
         clear_action = QAction("清除上下文", self)
-        clear_action.triggered.connect(self.clear_context)  # 调用新的 clear_context 方法
+        clear_action.triggered.connect(self.clear_context)
         context_menu.addAction(clear_action)
+        
+        # 添加语音控制项
+        context_menu.addSeparator()
+        voice_menu = context_menu.addMenu("语音功能")
+        
+        # TTS开关
+        tts_service = self.service_manager.get_service("tts_service")
+        tts_enabled = tts_service.settings.get_setting("initialize")
+        tts_action = QAction("TTS功能 (已启用)" if tts_enabled else "TTS功能 (已禁用)", self)
+        tts_action.triggered.connect(self.toggle_tts)
+        voice_menu.addAction(tts_action)
+        
+        # STT开关
+        stt_service = self.service_manager.get_service("stt_service")
+        stt_enabled = stt_service.settings.get_setting("enabled")
+        stt_action = QAction("STT功能 (已启用)" if stt_enabled else "STT功能 (已禁用)", self)
+        stt_action.triggered.connect(self.toggle_stt)
+        voice_menu.addAction(stt_action)
+        
         context_menu.addSeparator()
         setting_action = QAction("设置", self)
         setting_action.triggered.connect(self.openSettingWindow)
@@ -240,6 +274,29 @@ class FloatingBall(QWidget):
         exit_action.triggered.connect(QApplication.instance().quit)
         context_menu.addAction(exit_action)
         context_menu.exec_(event.globalPos())
+
+    # 添加开关功能的方法
+    def toggle_tts(self):
+        """切换TTS功能开关"""
+        try:
+            tts_service = self.service_manager.get_service("tts_service")
+            current_state = tts_service.settings.get_setting("initialize")
+            tts_service.update_setting("initialize", not current_state)
+            status = "启用" if not current_state else "禁用"
+            QMessageBox.information(self, "TTS设置", f"已{status} TTS功能")
+        except Exception as e:
+            QMessageBox.warning(self, "操作失败", f"切换TTS状态失败: {str(e)}")
+
+    def toggle_stt(self):
+        """切换STT功能开关"""
+        try:
+            stt_service = self.service_manager.get_service("stt_service")
+            current_state = stt_service.settings.get_setting("enabled")
+            stt_service.settings.update_setting("enabled", not current_state)
+            status = "启用" if not current_state else "禁用"
+            QMessageBox.information(self, "STT设置", f"已{status} STT功能")
+        except Exception as e:
+            QMessageBox.warning(self, "操作失败", f"切换STT状态失败: {str(e)}")
 
     def openSettingWindow(self):
         setting_window = SettingWindow(self)
