@@ -1,0 +1,9 @@
+funasr==1.2.6
+numpy==2.2.4
+openai==1.71.0
+PyAudio==0.2.14
+PyQt5==5.15.11
+PyQt5_sip==12.17.0
+Requests==2.32.3
+transformers==4.50.0
+websockets==15.0.1
