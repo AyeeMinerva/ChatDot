@@ -97,6 +97,10 @@ class ChatClient:
                     if ttsenabled:
                         LoggerManager().get_logger().debug(f"实时播放文本到语音: {chunk}")
                         self.tts_service.realtime_play_text_to_speech(chunk)
+                    #live2d
+                    if self.live2d_service and self.live2d_service.is_live2d_enabled():
+                        LoggerManager().get_logger().debug(f"实时播放文本到Live2D: {chunk}")
+                        self.live2d_service.realtime_text_to_live2d(chunk)
                         
                     yield chunk# 实时返回每个片段
             finally:
@@ -110,11 +114,15 @@ class ChatClient:
                     self.add_response("assistant", processed_response)
                     #self.add_response(''.join(full_response))
                     
+                    # #调用live2d服务
+                    # # 如果 Live2D 启用，则调用 Live2D 服务
+                    # if self.live2d_service and self.live2d_service.is_live2d_enabled():
+                    #     LoggerManager().get_logger().debug("调用 Live2D 服务...")
+                    #     self.live2d_service.text_to_live2d(processed_response)
                     #调用live2d服务
-                    # 如果 Live2D 启用，则调用 Live2D 服务
                     if self.live2d_service and self.live2d_service.is_live2d_enabled():
                         LoggerManager().get_logger().debug("调用 Live2D 服务...")
-                        self.live2d_service.text_to_live2d(processed_response)
+                        self.live2d_service.realtime_text_to_live2d(force_process=True)
                     #调用tts服务
                     if ttsenabled:
                         self.tts_service.realtime_play_text_to_speech(force_process=True)  # 处理剩余缓冲区
