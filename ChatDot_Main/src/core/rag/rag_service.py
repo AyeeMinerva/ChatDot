@@ -49,12 +49,28 @@ class RAGService:
     def save_config(self):
         """保存当前配置"""
         try:
-            settings = self.persistence_manager.load("rag", "settings.json") or {}
-            settings["enabled"] = self._enabled
-            self.persistence_manager.save("rag", settings, "settings.json")
+            # 构建完整的配置字典
+            config = {
+                "enabled": self._enabled,
+                "embedding": self.settings_manager.get_setting("rag.embedding"),
+                "vector_store": {
+                    "persist_directory": self.settings_manager.get_setting("rag.vector_store.persist_directory"),
+                    "default_collection": self.collection_name or self.settings_manager.get_setting("rag.vector_store.default_collection"),
+                    "search_results": self.settings_manager.get_setting("rag.vector_store.search_results"),
+                    "similarity_threshold": self.settings_manager.get_setting("rag.vector_store.similarity_threshold")
+                }
+            }
+            
+            # 保存配置到文件
+            self.persistence_manager.save("rag", config, "settings.json")
             self.logger.debug("RAG服务配置已保存")
+            
+            # 同步更新到 SettingsManager
+            self.settings_manager.update_setting("rag", None, config)
+            
         except Exception as e:
-            self.logger.error(f"保存RAG配置失败: {e}")
+            self.logger.error(f"保存RAG配置失败: {e}", exc_info=True)
+            raise
         
     def initialize(self):
         """初始化服务，由ServiceManager调用"""

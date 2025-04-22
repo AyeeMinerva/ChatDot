@@ -7,23 +7,25 @@ import json
 
 # RAG 模块的默认设置
 DEFAULT_SETTINGS = {
+    "enabled": True,  # 服务启用状态
     "embedding": {
-        "mode": "local",  # "local" 或 "api"
+        "mode": "local",  # local 或 api
         "local_model": {
             "model_name": "all-MiniLM-L6-v2",
             "cache_dir": os.path.join(get_core_path(), "rag", "models")
         },
         "api": {
-            "provider": "openai",  # 或 "gemini" 或其他兼容 OpenAI 格式的 API
-            "model": "text-embedding-ada-002",  # 可以是 "Gemini Embedding Experimental 03-07" 等
-            "api_base": "",  # 为空则使用默认 API 基础 URL
+            "provider": "openai",  # openai, gemini 或 custom
+            "model": "text-embedding-ada-002",
+            "api_base": "",  # 自定义API基础URL
             "timeout": 30
         }
     },
     "vector_store": {
         "persist_directory": os.path.join(get_core_path(), "SECRETS", "persistence", "rag_vector_store"),
-        "default_collection": "chat_memory",  # 默认集合/数据库名称
-        "search_results": 3  # 默认检索结果数量
+        "default_collection": "chat_memory",
+        "search_results": 3,  # 默认检索结果数量
+        "similarity_threshold": 0.95  # 相似度阈值,用于删除操作
     }
 }
 
