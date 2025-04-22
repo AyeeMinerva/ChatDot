@@ -28,6 +28,7 @@ class ConsoleInterface:
             'live2d': self.configure_live2d,
             'tts': self.configure_tts,
             'stt': self.configure_stt,
+            'rag': self.configure_rag,
             'exit': lambda: print("退出程序...")
         }
 
@@ -66,8 +67,9 @@ class ConsoleInterface:
         print("models  - 显示可用的LLM模型")
         print("config  - 配置LLM服务")
         print("live2d  - 配置Live2D服务")
-        print("tts     - 配置TTS服务")
-        print("stt     - 配置STT服务")
+        print("tts     - 配置TTS语音合成服务")
+        print("stt     - 配置STT语音识别服务")
+        print("rag     - 管理RAG长期记忆服务")
         print("exit    - 退出程序")
 
     def chat_mode(self):
@@ -663,8 +665,6 @@ class ConsoleInterface:
             print("音频播放完成")
         except Exception as e:
             print(f"TTS 测试失败: {e}")
-    #endregion
-
 
     def _manage_tts_presets(self, tts_service):
         """管理 TTS 预设角色"""
@@ -763,7 +763,9 @@ class ConsoleInterface:
                 
             # 操作后暂停一下
             input("\n按回车键继续...")
-
+    #endregion
+    
+    #region 配置 STT 服务
     def configure_stt(self):
         """配置STT(语音转文本)服务"""
         # 获取STT服务
@@ -938,7 +940,289 @@ class ConsoleInterface:
                 print("STT测试已停止")
             except Exception as e:
                 print(f"关闭服务时出错: {e}")
+    #endregion
+    
+    #region 配置 RAG 服务
+    def configure_rag(self):
+        """管理 RAG（检索增强生成）服务"""
+        from rag import RAGAdmin  # 导入 RAG 管理工具
+        
+        # 获取 RAG 服务
+        rag_service = self.service_manager.get_service("rag_service")
+        
+        if not rag_service:
+            print("RAG 服务未初始化")
+            return
+            
+        admin = RAGAdmin()
+        
+        while True:
+            print("\nRAG 管理:")
+            print("1. 查看当前状态")
+            print("2. 切换/管理记忆集合")
+            print("3. 清空当前记忆")
+            print("4. 配置嵌入设置")
+            print("5. 管理 API 密钥")
+            print("6. 导入外部文档")
+            print("7. 返回主菜单")
+            
+            choice = input("\n请选择 (1-7): ").strip()
+            
+            if choice == "1":
+                # 显示当前状态
+                current_collection = rag_service.collection_name
+                doc_count = rag_service.get_memory_count() if hasattr(rag_service, 'get_memory_count') else "未知"
+                embedding_mode = admin.get_rag_settings()["embedding"]["mode"]
                 
+                print(f"\n当前 RAG 状态:")
+                print(f"- 记忆集合: {current_collection}")
+                print(f"- 记忆数量: {doc_count}")
+                print(f"- 嵌入模式: {embedding_mode}")
+                
+            elif choice == "2":
+                # 管理记忆集合
+                self._configure_rag_collections(rag_service, admin)
+                
+            elif choice == "3":
+                # 清空当前记忆
+                confirm = input("确定要清空当前记忆集合吗? (y/n): ").strip().lower()
+                if confirm == 'y':
+                    if hasattr(rag_service, 'clear_memory') and rag_service.clear_memory():
+                        print("记忆集合已清空")
+                    else:
+                        print("清空记忆失败")
+                        
+            elif choice == "4":
+                # 配置嵌入设置
+                self._configure_rag_embedding(admin)
+                
+            elif choice == "5":
+                # 管理 API 密钥
+                self._configure_rag_api_keys(admin)
+                
+            elif choice == "6":
+                # 导入外部文档
+                print("\n使用命令行工具导入文档:")
+                print("打开命令提示符，导航到项目目录，然后运行:")
+                print("python -m scripts.import_documents <文件或目录路径> [--collection <集合名称>]")
+                print("\n例如:")
+                print("python -m scripts.import_documents D:\\文档 --collection document_store")
+                
+            elif choice == "7":
+                break
+                
+            else:
+                print("无效的选择，请重试")
+            
+    def _configure_rag_collections(self, rag_service, admin):
+        """管理 RAG 记忆集合"""
+        while True:
+            collections = admin.list_collections()
+            current_collection = rag_service.collection_name
+            
+            print("\n记忆集合管理:")
+            print(f"当前集合: {current_collection}")
+            print("\n可用集合:")
+            for i, name in enumerate(collections, 1):
+                print(f"{i}. {name}{' (当前)' if name == current_collection else ''}")
+                
+            print("\n操作:")
+            print("a. 切换集合")
+            print("b. 创建新集合")
+            print("c. 删除集合")
+            print("d. 返回上级菜单")
+            
+            choice = input("\n请选择操作 (a-d): ").strip().lower()
+            
+            if choice == "a":
+                if not collections:
+                    print("没有可用的集合")
+                    continue
+                    
+                idx = input(f"请选择集合编号 (1-{len(collections)}): ").strip()
+                try:
+                    idx = int(idx) - 1
+                    if 0 <= idx < len(collections):
+                        collection_name = collections[idx]
+                        if hasattr(rag_service, 'switch_collection') and rag_service.switch_collection(collection_name):
+                            print(f"已切换到集合: {collection_name}")
+                        else:
+                            print("切换集合失败")
+                    else:
+                        print("无效的选择")
+                except ValueError:
+                    print("请输入有效的数字")
+                    
+            elif choice == "b":
+                new_name = input("请输入新集合名称 (仅允许字母、数字、下划线): ").strip()
+                if not new_name or not all(c.isalnum() or c == '_' for c in new_name):
+                    print("无效的集合名称")
+                    continue
+                    
+                if admin.create_collection(new_name):
+                    print(f"已创建新集合: {new_name}")
+                    if input("是否切换到新集合? (y/n): ").strip().lower() == 'y':
+                        if hasattr(rag_service, 'switch_collection'):
+                            rag_service.switch_collection(new_name)
+                            print(f"已切换到集合: {new_name}")
+                else:
+                    print("创建集合失败")
+                    
+            elif choice == "c":
+                if not collections:
+                    print("没有可用的集合")
+                    continue
+                    
+                idx = input(f"请选择要删除的集合编号 (1-{len(collections)}): ").strip()
+                try:
+                    idx = int(idx) - 1
+                    if 0 <= idx < len(collections):
+                        collection_name = collections[idx]
+                        
+                        if collection_name == current_collection:
+                            print("无法删除当前正在使用的集合")
+                            continue
+                            
+                        confirm = input(f"确定要删除集合 '{collection_name}'? 此操作不可恢复 (y/n): ").strip().lower()
+                        if confirm == 'y':
+                            if admin.delete_collection(collection_name):
+                                print(f"已删除集合: {collection_name}")
+                            else:
+                                print("删除集合失败")
+                    else:
+                        print("无效的选择")
+                except ValueError:
+                    print("请输入有效的数字")
+                    
+            elif choice == "d":
+                break
+                
+            else:
+                print("无效的选择")
+                
+    def _configure_rag_embedding(self, admin):
+        """配置 RAG 嵌入设置"""
+        while True:
+            settings = admin.get_rag_settings()["embedding"]
+            current_mode = settings["mode"]
+            
+            print("\n嵌入设置:")
+            print(f"当前模式: {current_mode}")
+            
+            if current_mode == "local":
+                model_name = settings["local_model"]["model_name"]
+                print(f"当前本地模型: {model_name}")
+            else:
+                provider = settings["api"]["provider"]
+                model = settings["api"]["model"]
+                print(f"当前 API 提供商: {provider}")
+                print(f"当前 API 模型: {model}")
+                
+            print("\n操作:")
+            print("a. 切换到本地模型模式")
+            print("b. 切换到 API 模式")
+            print("c. 更改本地模型")
+            print("d. 更改 API 设置")
+            print("e. 返回上级菜单")
+            
+            choice = input("\n请选择操作 (a-e): ").strip().lower()
+            
+            if choice == "a":
+                if admin.set_embedding_mode("local"):
+                    print("已切换到本地模型模式")
+                else:
+                    print("切换模式失败")
+                    
+            elif choice == "b":
+                if admin.set_embedding_mode("api"):
+                    print("已切换到 API 模式")
+                else:
+                    print("切换模式失败")
+                    
+            elif choice == "c":
+                model_name = input("请输入本地模型名称 (例如: all-MiniLM-L6-v2): ").strip()
+                if model_name:
+                    if admin.set_local_model(model_name):
+                        print(f"已设置本地模型: {model_name}")
+                    else:
+                        print("设置模型失败")
+                else:
+                    print("模型名称不能为空")
+                    
+            elif choice == "d":
+                provider = input("请输入 API 提供商 (openai/gemini/custom): ").strip().lower()
+                if provider not in ["openai", "gemini", "custom"]:
+                    print("不支持的 API 提供商")
+                    continue
+                    
+                model = input("请输入模型名称 (例如: text-embedding-ada-002): ").strip()
+                if not model:
+                    print("模型名称不能为空")
+                    continue
+                    
+                api_base = input("请输入 API 基础 URL (可选): ").strip()
+                
+                if admin.set_api_model(provider, model, api_base):
+                    print(f"API 设置已更新: {provider}/{model}")
+                else:
+                    print("更新 API 设置失败")
+                    
+            elif choice == "e":
+                break
+                
+            else:
+                print("无效的选择")
+                
+    def _configure_rag_api_keys(self, admin):
+        """管理 RAG API 密钥"""
+        while True:
+            print("\nAPI 密钥管理:")
+            
+            # 显示当前密钥状态（掩码显示）
+            for provider in ["openai", "gemini", "custom"]:
+                masked_key = admin.manage_api_key(provider)
+                status = "已设置" if masked_key else "未设置"
+                if masked_key:
+                    print(f"{provider}: {status} ({masked_key})")
+                else:
+                    print(f"{provider}: {status}")
+                
+            print("\n操作:")
+            print("a. 设置 OpenAI API 密钥")
+            print("b. 设置 Gemini API 密钥")
+            print("c. 设置自定义 API 密钥")
+            print("d. 返回上级菜单")
+            
+            choice = input("\n请选择操作 (a-d): ").strip().lower()
+            
+            if choice == "a":
+                key = input("请输入 OpenAI API 密钥: ").strip()
+                if admin.manage_api_key("openai", key):
+                    print("OpenAI API 密钥已更新")
+                else:
+                    print("更新 API 密钥失败")
+                    
+            elif choice == "b":
+                key = input("请输入 Gemini API 密钥: ").strip()
+                if admin.manage_api_key("gemini", key):
+                    print("Gemini API 密钥已更新")
+                else:
+                    print("更新 API 密钥失败")
+                    
+            elif choice == "c":
+                key = input("请输入自定义 API 密钥: ").strip()
+                if admin.manage_api_key("custom", key):
+                    print("自定义 API 密钥已更新")
+                else:
+                    print("更新 API 密钥失败")
+                    
+            elif choice == "d":
+                break
+                
+            else:
+                print("无效的选择")
+    #endregion
+    
 if __name__ == "__main__":
     interface = ConsoleInterface()
     interface.run()

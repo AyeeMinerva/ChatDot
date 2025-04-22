@@ -18,6 +18,7 @@ class ChatClient:
         self.context_handle_service = self.service_manager.get_service("context_handle_service")
         self.live2d_service = self.service_manager.get_service("live2d_service")
         self.tts_service = self.service_manager.get_service("tts_service")
+        self.rag_service = self.service_manager.get_service("rag_service")
         self.chat_persistence = chat_persistence or ChatPersistence()
         self._is_Stop_generating = False  # 停止生成标志
         self.messages: List[Dict] = []
@@ -55,9 +56,36 @@ class ChatClient:
         # 添加用户消息到历史
         self.add_response("user", message)
         
+        local_messages = self.messages
+        llm_messages = self.messages
+        
+        #region RAG处理
+        if self.rag_service and self.rag_service.is_enabled():
+            try:
+                #按最近的10条消息进行上下文检索
+                rag_context = self.rag_service.retrieve(
+                    query=local_messages[-10:],
+                    n_results=3,
+                )
+                #将检索到的上下文添加到消息列表中
+                llm_messages.insert(-10,
+                                    {"role": "system",
+                                     "content":
+                                        f"""
+[Memory Context]                                        
+按以下10条消息搜索的记忆中的相关上下文:
+{rag_context}
+[/Memory Context]
+                                        """
+                                    })
+            except Exception as e:
+                LoggerManager().get_logger().error(f"RAG上下文检索失败: {e}")
+        #endregion
+        
+        
         # 使用上下文处理器处理消息
         handler = self.context_handle_service.get_current_handler()
-        local_messages, llm_messages = (handler.process_before_send(self.messages) 
+        local_messages, llm_messages = (handler.process_before_send(llm_messages) 
                                       if handler else (self.messages, self.messages))
         
         if not self.llm_service:
@@ -114,11 +142,14 @@ class ChatClient:
                     self.add_response("assistant", processed_response)
                     #self.add_response(''.join(full_response))
                     
-                    # #调用live2d服务
-                    # # 如果 Live2D 启用，则调用 Live2D 服务
-                    # if self.live2d_service and self.live2d_service.is_live2d_enabled():
-                    #     LoggerManager().get_logger().debug("调用 Live2D 服务...")
-                    #     self.live2d_service.text_to_live2d(processed_response)
+                    #添加到RAG数据库
+                    if self.rag_service and self.rag_service.is_enabled():
+                        try:
+                            self.rag_service.store(
+                                str(local_messages[-2:])
+                            )
+                        except Exception as e:
+                            LoggerManager().get_logger().error(f"RAG上下文添加失败: {e}")
                     #调用live2d服务
                     if self.live2d_service and self.live2d_service.is_live2d_enabled():
                         LoggerManager().get_logger().debug("调用 Live2D 服务...")
@@ -154,7 +185,16 @@ class ChatClient:
     def delete_message(self, index: int):
         """删除指定索引的消息"""
         if 0 <= index < len(self.messages):
-            self.messages.pop(index)
+            deleted_message = self.messages.pop(index)
+        #调用RAG服务删除消息
+        if self.rag_service and self.rag_service.is_enabled():
+            try:
+                self.rag_service.delete_by_content(
+                    str(deleted_message),0.98
+                )
+            except Exception as e:
+                LoggerManager().get_logger().error(f"RAG上下文删除失败: {e}")
+        
 
     def edit_message(self, index: int, new_content: str):
         """编辑指定索引的消息内容"""

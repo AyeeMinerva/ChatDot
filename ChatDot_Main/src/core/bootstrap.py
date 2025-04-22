@@ -7,6 +7,7 @@ from live2d.service import Live2DService
 from global_managers.logger_manager import LoggerManager
 from tts.service import TTSService
 from stt.service import STTService
+from rag.rag_service import RAGService
 
 class Bootstrap:
     """
@@ -51,6 +52,7 @@ class Bootstrap:
             
             ("llm_service", LLMService),             # LLM服务
             ("context_handle_service", ContextHandleService),  # 上下文处理服务
+            ("rag_service", RAGService),             # RAG服务
             ("chat_service", ChatService),           # 聊天服务
         ])
         
