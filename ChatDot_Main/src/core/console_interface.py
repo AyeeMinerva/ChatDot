@@ -549,10 +549,11 @@ class ConsoleInterface:
             print("3. 配置流式模式")
             print("4. 配置语音参数")
             print("5. 管理预设角色")
-            print("6. 测试 TTS")
-            print("7. 返回主菜单")
+            print("6. 管理TTS处理器") # 新增选项
+            print("7. 测试 TTS")
+            print("8. 返回主菜单")
             
-            choice = input("请选择 (1-7): ").strip()
+            choice = input("请选择 (1-8): ").strip()
             
             if choice == "1":
                 current_status = tts_service.settings.get_setting("initialize")
@@ -579,10 +580,13 @@ class ConsoleInterface:
             elif choice == "5":
                 self._manage_tts_presets(tts_service)
                 
-            elif choice == "6":
+            elif choice == "6":  # 新增选项处理
+                self._manage_tts_handlers(tts_service)
+                
+            elif choice == "7":  # 测试选项编号更改
                 self._test_tts(tts_service)
                 
-            elif choice == "7":
+            elif choice == "8":  # 返回选项编号更改
                 break
                 
             else:
@@ -649,6 +653,60 @@ class ConsoleInterface:
         else:
             print("无效的选择")
 
+    #TTS处理器管理方法
+    def _manage_tts_handlers(self, tts_service):
+        """管理TTS文本处理器"""
+        while True:
+            print("\n=== TTS处理器管理 ===")
+            
+            # 获取当前处理器
+            current_handler = tts_service.get_tts_handler()
+            print(f"当前使用的处理器: {current_handler}")
+            
+            # 获取所有可用处理器
+            available_handlers = tts_service.get_available_tts_handlers()
+            
+            if not available_handlers:
+                print("未找到可用的TTS处理器")
+                input("\n按回车键返回...")
+                return
+                
+            print("\n可用的TTS处理器:")
+            for i, handler in enumerate(available_handlers, 1):
+                print(f"{i}. {handler['name']}")
+                print(f"   - 描述: {handler['description']}")
+            
+            print("\n操作选项:")
+            print("1. 切换处理器")
+            print("2. 返回")
+            
+            choice = input("\n请选择操作 (1-2): ").strip()
+            
+            if choice == "1":
+                idx = input(f"请输入要切换的处理器编号 (1-{len(available_handlers)}): ").strip()
+                try:
+                    idx = int(idx) - 1
+                    if 0 <= idx < len(available_handlers):
+                        handler_id = available_handlers[idx]['id']
+                        if tts_service.set_tts_handler(handler_id):
+                            print(f"已成功切换到处理器: {available_handlers[idx]['name']}")
+                            # 保存设置
+                            tts_service.update_setting("tts_handler", handler_id)
+                        else:
+                            print("切换处理器失败")
+                    else:
+                        print("无效的选择")
+                except ValueError:
+                    print("请输入有效的数字")
+                    
+            elif choice == "2":
+                break
+            else:
+                print("无效的选择，请重试")
+                
+            # 操作后暂停一下
+            input("\n按回车键继续...")
+    
     def _test_tts(self, tts_service):
         """测试 TTS 功能"""
         if not tts_service.is_tts_enabled():
