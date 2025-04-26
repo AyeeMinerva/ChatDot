@@ -6,7 +6,9 @@ from tts.persistence import TTSPersistence
 from tts.audio_player import AudioPlayer
 from tts.audio_player import player
 import time
+from typing import List, Dict, Optional
 from global_managers.logger_manager import LoggerManager
+from tts.tts_handle.manager import TTSHandleManager
 
 class TTSService:
     """
@@ -17,6 +19,9 @@ class TTSService:
         self.settings = TTSSettings()
         self.persistence = TTSPersistence()
         self.client = None
+        
+        # 初始化TTS处理器管理器
+        self.handler_manager = TTSHandleManager()
 
     def initialize(self):
         """
@@ -300,7 +305,7 @@ class TTSService:
             
     def realtime_play_text_to_speech(self, text_chunk=None, force_process=False):
         """
-        实时文本转语音处理，将文本块收集到缓冲区，在遇到标点符号时进行句级TTS
+        实时文本转语音处理，将文本块收集到缓冲区，根据当前处理器策略进行TTS
         
         Args:
             text_chunk: 新的文本块，None表示不添加新文本
@@ -310,6 +315,29 @@ class TTSService:
         if not hasattr(self, '_text_buffer'):
             self._text_buffer = ""
         
+        # 获取当前处理器
+        handler = self.handler_manager.get_current_handler()
+        if not handler:
+            # 降级到默认处理方式（旧的逻辑）
+            self._legacy_realtime_play_text_to_speech(text_chunk, force_process)
+            return
+        
+        # 使用处理器处理文本
+        process_text, self._text_buffer = handler.process_text_chunk(
+            text_chunk, 
+            self._text_buffer,
+            force_process
+        )
+        
+        # 处理得到的文本
+        if process_text and process_text.strip():
+            LoggerManager().get_logger().debug(f"TTS处理器[{handler.__class__.__name__}]处理文本: {process_text}")
+            self.play_text_to_speech(process_text, force_play=False)
+            
+    def _legacy_realtime_play_text_to_speech(self, text_chunk=None, force_process=False):
+        """
+        旧的实时文本转语音处理，作为备用方法
+        """
         # 添加新文本到缓冲区
         if text_chunk:
             self._text_buffer += text_chunk
@@ -317,26 +345,25 @@ class TTSService:
         # 定义句子结束标点
         sentence_end_punctuation = ["。", "！", "？", ".", "!", "?", "\n"]
         
-        # 如果强制处理或缓冲区为空，则不需要继续
+        # 缓冲区为空直接返回
         if not self._text_buffer:
             return
         
-        # 检查是否需要处理缓冲区
+        # 强制处理模式 - 用于处理最后剩余的文本
         if force_process:
-            # 强制处理所有剩余文本
             if self._text_buffer.strip():
                 LoggerManager().get_logger().debug(f"强制处理剩余文本: {self._text_buffer}")
                 self.play_text_to_speech(self._text_buffer, force_play=False)
                 self._text_buffer = ""
             return
         
-        # 查找句子结束标点
+        # 寻找句子结束标点
         process_index = -1
         for punct in sentence_end_punctuation:
             pos = self._text_buffer.rfind(punct)
             if pos > process_index:
                 process_index = pos
-                
+        
         # 如果找到标点，处理到该标点为止的文本
         if process_index >= 0:
             # 提取要处理的文本（包括标点）
@@ -347,6 +374,26 @@ class TTSService:
             if process_text.strip():
                 LoggerManager().get_logger().debug(f"处理句子: {process_text}")
                 self.play_text_to_speech(process_text, force_play=False)
+                
+    #region TTS处理器管理
+    def get_tts_handler(self) -> str:
+        """获取当前TTS处理器ID"""
+        handler = self.handler_manager.get_current_handler()
+        if not handler:
+            return "未设置"
+        for name, handler_class in self.handler_manager.handlers.items():
+            if isinstance(handler, handler_class):
+                return name
+        return "未知"
+
+    def set_tts_handler(self, handler_id: str) -> bool:
+        """设置TTS处理器"""
+        return self.handler_manager.set_handler(handler_id)
+
+    def get_available_tts_handlers(self) -> List[Dict]:
+        """获取所有可用的TTS处理器"""
+        return self.handler_manager.get_available_handlers()
+    #endregion
         
     def update_setting(self, key, value):
         """
@@ -354,22 +401,28 @@ class TTSService:
         """
         self.settings.update_setting(key, value)
         self.save_config()
-        #初始化参数
+        
+        # 初始化参数
         if key == "initialize":
             if value:
                 self.initialize()
-        if key == "url" and self.client:
-            #若之前没有url,则初始化客户端
+        
+        # URL 相关设置
+        elif key == "url":
             if not self.client:
                 self.client = TTSClient(value)
             else:
                 self.client.set_server_url(value)
-        #更换gpt模型时需要重新加载模型
-        if key == "gpt_model_path":
+        
+        # 模型相关设置
+        elif key == "gpt_model_path":
             self.client.set_gpt_weights(value)
-        #更换sovits模型时需要重新加载模型
-        if key == "sovits_model_path":
+        elif key == "sovits_model_path":
             self.client.set_sovits_weights(value)
+        
+        # TTS 处理器相关设置
+        elif key == "tts_handler" and hasattr(self, "handler_manager"):
+            self.handler_manager.set_handler(value)
 
     def save_config(self):
         """
@@ -396,7 +449,10 @@ class TTSService:
             
             # 预设配置
             "current_preset": self.settings.get_setting("current_preset"),
-            "presets": self.settings.get_setting("presets")
+            "presets": self.settings.get_setting("presets"),
+            
+            # TTS处理器配置
+            "tts_handler": self.get_tts_handler(),  # 添加当前TTS处理器
         }
         self.persistence.save_config(config)
 
@@ -404,7 +460,9 @@ class TTSService:
         """
         关闭服务
         """
-        LoggerManager().get_logger().info("TTSService 已关闭")
+        self.stop_playing()
+        self.save_config()
+        LoggerManager().get_logger().debug("TTS服务已关闭")
 
 
 if __name__ == "__main__":
