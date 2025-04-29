@@ -1,6 +1,6 @@
 import requests
-#from emotion.client import EmotionCilent
-from live2d.emotion.client import EmotionCilent
+#from emotion.client import EmotionClient
+from live2d.emotion.client import EmotionClient
 from global_managers.logger_manager import LoggerManager
 
 class Live2DClient:
@@ -11,7 +11,7 @@ class Live2DClient:
         :param enable_emotion: 是否启用情感分析
         """
         self.server_url = server_url
-        self.emotion_client = EmotionCilent() if enable_emotion else None
+        self.emotion_client = EmotionClient() if enable_emotion else None
 
     def set_server_url(self, server_url: str):
         """

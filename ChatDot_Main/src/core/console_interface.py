@@ -580,13 +580,13 @@ class ConsoleInterface:
             elif choice == "5":
                 self._manage_tts_presets(tts_service)
                 
-            elif choice == "6":  # 新增选项处理
+            elif choice == "6":
                 self._manage_tts_handlers(tts_service)
                 
-            elif choice == "7":  # 测试选项编号更改
+            elif choice == "7":  # 测试
                 self._test_tts(tts_service)
                 
-            elif choice == "8":  # 返回选项编号更改
+            elif choice == "8":  # 返回
                 break
                 
             else:
