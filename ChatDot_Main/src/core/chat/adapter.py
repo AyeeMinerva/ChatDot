@@ -4,7 +4,7 @@ from global_managers.service_manager import ServiceManager
 from global_managers.logger_manager import LoggerManager
 from chat.persistence import ChatPersistence
 
-class ChatClient:
+class ChatAdapter:
     def __init__(self, llm_service=None, service_manager=None, chat_persistence=None):
         """
         初始化聊天客户端
@@ -34,7 +34,7 @@ class ChatClient:
         try:
             self.llm_service.stop_generating()
         except Exception as e:
-            LoggerManager().get_logger().warning(f"chat.client: llm_service级停止生成失败: {e}")
+            LoggerManager().get_logger().warning(f"chat.adapter: llm_service级停止生成失败: {e}")
 
     def send_message(self, message: str, is_stream: bool = True) -> Tuple[List[Dict], Iterator[str]]:
         """

@@ -1,9 +1,9 @@
 from typing import Dict, Iterator, List
 from global_managers.service_manager import ServiceManager
-from client.llm.client import LLMClient
-from client.llm.settings import LLMSettings
-from client.llm.persistence import LLMPersistence
-from client.llm.worker import LLMWorker
+from adapter.llm.adapter import LLMAdapter
+from adapter.llm.settings import LLMSettings
+from adapter.llm.persistence import LLMPersistence
+from adapter.llm.worker import LLMWorker
 import traceback
 from global_managers.logger_manager import LoggerManager
 
@@ -14,7 +14,7 @@ class LLMService:
         #self.service_manager = ServiceManager()
         self.settings = LLMSettings()
         self.persistence = LLMPersistence()
-        self.client = LLMClient()
+        self.adapter = LLMAdapter()
 
     def initialize(self):
         """初始化服务"""
@@ -27,24 +27,24 @@ class LLMService:
                 self.settings.update_setting(key, value)
 
         # 初始化客户端配置
-        self._initialize_client_config()
+        self._initialize_adapter_config()
         self._initialized = True
         
-    def _initialize_client_config(self):
+    def _initialize_adapter_config(self):
         """初始化客户端配置"""
-        #LoggerManager().get_logger().debug("LLMService: 正在执行_initialize_client_config...")
-        #LoggerManager().get_logger().debug("\nLLMService: _initialize_client_config 被调用")
+        #LoggerManager().get_logger().debug("LLMService: 正在执行_initialize_adapter_config...")
+        #LoggerManager().get_logger().debug("\nLLMService: _initialize_adapter_config 被调用")
         #LoggerManager().get_logger().debug("调用栈:")
         #LoggerManager().get_logger().debug(''.join(traceback.format_stack()[:-1]))  # 打印调用栈
         api_keys = self.settings.get_setting("api_keys")
         api_base = self.settings.get_setting("api_base")
-        self.client.set_api_config(api_keys, api_base, test_connection=False)
+        self.adapter.set_api_config(api_keys, api_base, test_connection=False)
 
         model_name = self.settings.get_setting("model_name")
         model_params = self.settings.get_setting("model_params")
         #LoggerManager().get_logger().debug(f"LLMService: 从settings加载配置 - model_name: {model_name}, model_params: {model_params}")
-        self.client.set_model_name(model_name)
-        self.client.set_model_params(model_params)
+        self.adapter.set_model_name(model_name)
+        self.adapter.set_model_params(model_params)
 
     def save_config(self):
         """保存当前配置"""
@@ -58,7 +58,7 @@ class LLMService:
 
     def stop_generating(self):
         """停止生成"""
-        self.client.stop_generating()
+        self.adapter.stop_generating()
     
     def send_message(self, messages: List[Dict], model_name: str = None, 
                     model_params: Dict = None) -> Iterator[str]:
@@ -74,7 +74,7 @@ class LLMService:
             Iterator[str]: 响应迭代器
         """
         worker = LLMWorker(
-            llm_client=self.client,
+            llm_adapter=self.adapter,
             messages=messages,
             model_name=model_name,
             model_params=model_params
@@ -86,23 +86,23 @@ class LLMService:
     
     def fetch_models(self):
         """获取可用模型列表"""
-        return self.client.fetch_available_models()
+        return self.adapter.fetch_available_models()
 
     def update_setting(self, key, value):
         """更新设置并保存"""
         #LoggerManager().get_logger().debug(f"LLMService: 调用 update_setting: key={key}, value={value}")
         self.settings.update_setting(key, value)
-        #调用client的set_api_config方法
+        #调用adapter的set_api_config方法
         # 根据不同的设置类型调用对应的配置方法
         if key in ["api_keys", "api_base"]:
             # 更新API配置
             api_keys = self.settings.get_setting("api_keys")
             api_base = self.settings.get_setting("api_base")
-            self.client.set_api_config(api_keys, api_base, test_connection=False)
+            self.adapter.set_api_config(api_keys, api_base, test_connection=False)
         elif key == "model_name":
             # 更新模型名称
-            self.client.set_model_name(value)
+            self.adapter.set_model_name(value)
         elif key == "model_params":
             # 更新模型参数
-            self.client.set_model_params(value)
+            self.adapter.set_model_params(value)
         self.save_config()

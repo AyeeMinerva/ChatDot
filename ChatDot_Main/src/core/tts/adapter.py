@@ -1,7 +1,7 @@
 import requests
 from global_managers.logger_manager import LoggerManager
 
-class TTSClient:
+class TTSAdapter:
     def __init__(self, server_url: str = None):
         """
         初始化 TTS 客户端
@@ -89,7 +89,7 @@ class TTSClient:
         }
 
         try:
-            LoggerManager().get_logger().debug(f"tts.client: 请求 URL: {url}, 参数: {params}")
+            LoggerManager().get_logger().debug(f"tts.adapter: 请求 URL: {url}, 参数: {params}")
             response = requests.get(url, params=params)
             if response.status_code == 200:
                 return response.content  # 返回完整的音频数据
@@ -119,7 +119,7 @@ class TTSClient:
         }
 
         try:
-            LoggerManager().get_logger().debug(f"tts.client: 请求 URL: {url}, 参数: {params}")
+            LoggerManager().get_logger().debug(f"tts.adapter: 请求 URL: {url}, 参数: {params}")
             with requests.get(url, params=params, stream=True) as response:
                 if response.status_code == 200:
                     for chunk in response.iter_content(chunk_size=1024):
@@ -134,11 +134,11 @@ class TTSClient:
 if __name__ == "__main__":
     import time
     # 初始化客户端
-    client = TTSClient(server_url="http://183.175.12.68:9880")
+    adapter = TTSAdapter(server_url="http://183.175.12.68:9880")
 
     # 测试非流式合成
     print("\n=== 测试非流式合成 ===")
-    result = client.synthesize(
+    result = adapter.synthesize(
         text="先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。",
         text_lang="zh",
         ref_audio_path="/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     print("\n=== 测试流式合成 ===")
     total_size = 0
     chunk_count = 0
-    stream_result = client.synthesize_stream(
+    stream_result = adapter.synthesize_stream(
         text="先帝创业未半而中道崩殂，今天下三分，益州疲弊，此诚危急存亡之秋也。",
         text_lang="zh",
         ref_audio_path="/data/qinxu/GPT-SoVITS/sample_audios/也许过大的目标会导致逻辑上的越界.wav",

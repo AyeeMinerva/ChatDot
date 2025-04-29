@@ -4,9 +4,9 @@ from collections import deque
 from threading import Lock
 from global_managers.logger_manager import LoggerManager
 
-class LLMClient:
+class LLMAdapter:
     """
-    LLMClient 是一个管理与大型语言模型(LLM) API连接和通信的类。
+    LLMAdapter 是一个管理与大型语言模型(LLM) API连接和通信的类。
     该类提供以下功能：
     - 通过轮询方式处理多个API密钥
     - 配置和测试API连接
@@ -15,7 +15,7 @@ class LLMClient:
     - 从API获取可用模型列表
     
     属性：
-        client: OpenAI客户端实例
+        adapter: OpenAI客户端实例
         api_keys (deque): 用于轮询的API密钥集合
         api_base (str): API的基础URL
         model_name (str): 要使用的LLM模型名称
@@ -24,10 +24,10 @@ class LLMClient:
     
     示例：
         ```
-        client = LLMClient()
-        client.set_api_config(['key1', 'key2'], 'https://api.base.url')
-        client.set_model_name('gpt-3.5-turbo')
-        response = client.communicate([{"role": "user", "content": "Hello"}])
+        adapter = LLMAdapter()
+        adapter.set_api_config(['key1', 'key2'], 'https://api.base.url')
+        adapter.set_model_name('gpt-3.5-turbo')
+        response = adapter.communicate([{"role": "user", "content": "Hello"}])
         ```
     
     异常：
@@ -36,7 +36,7 @@ class LLMClient:
     """
     
     def __init__(self):
-        self.client = None
+        self.adapter = None
         self.api_keys = deque()  # 使用双端队列存储多个API Keys
         self.api_base = None
         self.model_name = None
@@ -69,23 +69,23 @@ class LLMClient:
             valid_keys = []
             for key in api_keys:
                 try:
-                    test_client = openai.OpenAI(
+                    test_adapter = openai.OpenAI(
                         api_key=key,
                         base_url=api_base
                     )
-                    test_client.models.list()
+                    test_adapter.models.list()
                     valid_keys.append(key)
                 except Exception as e:
-                    LoggerManager().get_logger().warning(f"API Key {key[:8]}... 测试失败(llm_client.set_api_config): {e}")
+                    LoggerManager().get_logger().warning(f"API Key {key[:8]}... 测试失败(llm_adapter.set_api_config): {e}")
             
             #去除apikeys筛选逻辑
             # if not valid_keys:
-            #     self.client = None
+            #     self.adapter = None
             #     raise RuntimeError("没有有效的API Keys")
             # self.api_keys = deque(valid_keys)
         
-        # 不管是否测试，都设置第一个key为当前client
-        self.client = openai.OpenAI(
+        # 不管是否测试，都设置第一个key为当前adapter
+        self.adapter = openai.OpenAI(
             api_key=self.api_keys[0],
             base_url=api_base
         )
@@ -98,12 +98,12 @@ class LLMClient:
 
     def test_connection(self):
         try:
-            models = self.client.models.list()
+            models = self.adapter.models.list()
             if not models:
                 raise RuntimeError("无法获取模型列表，API 连接可能存在问题。")
             LoggerManager().get_logger().debug("API 连接测试成功，成功获取模型列表...")
         except Exception as e:
-            self.client = None
+            self.adapter = None
             raise RuntimeError(f"API 连接测试失败(test_connection): {e}")
 
     def set_model_name(self, model_name):
@@ -144,8 +144,8 @@ class LLMClient:
     
     #def communicate(self, messages, model_name=None, stream=False, model_params_override=None): #stream参数现已整合进params
     def communicate(self, messages, model_name=None, model_params_override=None):
-        if not self.client:
-            raise RuntimeError("LLMClient 未连接到 API，请先配置 API 连接。")
+        if not self.adapter:
+            raise RuntimeError("LLMAdapter 未连接到 API，请先配置 API 连接。")
 
         final_model_name = model_name or self.model_name or "gpt-3.5-turbo"
         params = self.model_params.copy()
@@ -154,7 +154,7 @@ class LLMClient:
 
         # 获取下一个API Key
         api_key = self.get_next_api_key()
-        self.client = openai.OpenAI(
+        self.adapter = openai.OpenAI(
             api_key=api_key,
             base_url=self.api_base
         )
@@ -169,7 +169,7 @@ class LLMClient:
         LoggerManager().get_logger().debug("-------------------------------")
 
         try:
-            response = self.client.chat.completions.create(
+            response = self.adapter.chat.completions.create(
                 model=final_model_name,
                 messages=messages,
                 #stream=stream, #stream参数现已整合进params
@@ -187,10 +187,10 @@ class LLMClient:
             raise RuntimeError(f"LLM 通信失败: {e}")
 
     def fetch_available_models(self):
-        if not self.client:
-            raise RuntimeError("LLMClient 未连接到 API，请先配置 API 连接。")
+        if not self.adapter:
+            raise RuntimeError("LLMAdapter 未连接到 API，请先配置 API 连接。")
         try:
-            model_list = self.client.models.list()
+            model_list = self.adapter.models.list()
             model_names = [model.id for model in model_list.data]
             return model_names
         except Exception as e:

@@ -1,6 +1,6 @@
 import asyncio
 import types
-from tts.client import TTSClient
+from tts.adapter import TTSAdapter
 from tts.settings import TTSSettings
 from tts.persistence import TTSPersistence
 from tts.audio_player import AudioPlayer
@@ -18,7 +18,7 @@ class TTSService:
         self._initialized = False
         self.settings = TTSSettings()
         self.persistence = TTSPersistence()
-        self.client = None
+        self.adapter = None
         
         # 初始化TTS处理器管理器
         self.handler_manager = TTSHandleManager()
@@ -44,7 +44,7 @@ class TTSService:
         # 设置客户端 URL
         url = self.settings.get_setting("url")
         if url:
-            self.client = TTSClient(server_url=url)
+            self.adapter = TTSAdapter(server_url=url)
         else:
             LoggerManager().get_logger().warning("警告: TTS URL 未设置，无法初始化客户端")
 
@@ -92,11 +92,11 @@ class TTSService:
         Returns:
             成功返回True，失败返回错误信息
         """
-        if not self.client:
+        if not self.adapter:
             return {"error": "TTS客户端未初始化"}
             
         try:
-            result = self.client.set_gpt_weights(weights_path)
+            result = self.adapter.set_gpt_weights(weights_path)
             if result == "success":
                 LoggerManager().get_logger().debug(f"成功切换GPT模型: {weights_path}")
                 return True
@@ -114,11 +114,11 @@ class TTSService:
         Returns:
             成功返回True，失败返回错误信息
         """
-        if not self.client:
+        if not self.adapter:
             return {"error": "TTS客户端未初始化"}
             
         try:
-            result = self.client.set_sovits_weights(weights_path)
+            result = self.adapter.set_sovits_weights(weights_path)
             if result == "success":
                 LoggerManager().get_logger().debug(f"成功切换Sovits模型: {weights_path}")
                 return True
@@ -217,7 +217,7 @@ class TTSService:
         if not self.settings.get_setting("initialize"):
             raise RuntimeError("TTS 未启用")
 
-        if not self.client:
+        if not self.adapter:
             raise RuntimeError("TTS 客户端未初始化")
 
         # 从设置中获取参数
@@ -235,7 +235,7 @@ class TTSService:
                              
         if streaming_mode:
             #LoggerManager().get_logger().debug("使用流式合成")
-            return self.client.synthesize_stream(
+            return self.adapter.synthesize_stream(
                 text=text,
                 text_lang=text_lang,
                 ref_audio_path=ref_audio_path,
@@ -248,7 +248,7 @@ class TTSService:
             )
         else:
             #LoggerManager().get_logger().debug("使用非流式合成")
-            return self.client.synthesize(
+            return self.adapter.synthesize(
                 text=text,
                 text_lang=text_lang,
                 ref_audio_path=ref_audio_path,
@@ -409,16 +409,16 @@ class TTSService:
         
         # URL 相关设置
         elif key == "url":
-            if not self.client:
-                self.client = TTSClient(value)
+            if not self.adapter:
+                self.adapter = TTSAdapter(value)
             else:
-                self.client.set_server_url(value)
+                self.adapter.set_server_url(value)
         
         # 模型相关设置
         elif key == "gpt_model_path":
-            self.client.set_gpt_weights(value)
+            self.adapter.set_gpt_weights(value)
         elif key == "sovits_model_path":
-            self.client.set_sovits_weights(value)
+            self.adapter.set_sovits_weights(value)
         
         # TTS 处理器相关设置
         elif key == "tts_handler" and hasattr(self, "handler_manager"):

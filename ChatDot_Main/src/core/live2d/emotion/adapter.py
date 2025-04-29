@@ -6,7 +6,7 @@ import threading
 from global_managers.logger_manager import LoggerManager
 
 
-class EmotionClient:
+class EmotionAdapter:
     _instance = None
     _lock = Lock()  # 用于线程安全的单例实现
 
@@ -14,7 +14,7 @@ class EmotionClient:
         if not cls._instance:
             with cls._lock:
                 if not cls._instance:
-                    cls._instance = super(EmotionClient, cls).__new__(cls, *args, **kwargs)
+                    cls._instance = super(EmotionAdapter, cls).__new__(cls, *args, **kwargs)
         return cls._instance
 
     def __init__(self):
@@ -82,7 +82,7 @@ class EmotionClient:
 
 # 示例用法
 if __name__ == "__main__":
-    analyzer = EmotionClient()
+    analyzer = EmotionAdapter()
     while True:
         text = input("请输入文本: ")
         if text.lower() == "exit":

@@ -219,7 +219,7 @@ class ConsoleInterface:
                     if tts_service and tts_service.is_tts_enabled():
                         tts_service.stop_playing()
                     
-                    # 获取原始响应（TTS处理已经在ChatClient中完成）
+                    # 获取原始响应（TTS处理已经在ChatAdapter中完成）
                     response_iterator = chat_service.send_message(user_input, is_stream=True)
                     
                     # 处理响应（仅显示，无需重复TTS处理）

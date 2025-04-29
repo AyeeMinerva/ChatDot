@@ -88,7 +88,7 @@ class LLMConnectionSettingsPage(QWidget):
 
             # 设置 API 配置
             try:
-                llm_service.client.set_api_config(api_keys=api_keys, api_base=api_base, test_connection=True)
+                llm_service.adapter.set_api_config(api_keys=api_keys, api_base=api_base, test_connection=True)
             except Exception as e:
                 QMessageBox.critical(self, "API 连接失败", str(e))
                 self.model_name_combo.clear()

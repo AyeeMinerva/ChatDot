@@ -143,7 +143,7 @@ class SettingWindow(QDialog):
         llm_service.update_setting('api_base', self.llm_connection_settings_page.api_base_input.text().strip())
         llm_service.update_setting('api_keys', self.llm_connection_settings_page.api_keys)
         llm_service.update_setting('model_params', self.model_params_settings_page.get_model_params_settings())
-        llm_service.update_setting('model_name', llm_service.client.get_model_name())
+        llm_service.update_setting('model_name', llm_service.adapter.get_model_name())
 
         # 保存 prompt 处理器设置
         context_handle_service.manager.persistence.save_current_handler(prompt_handler)
@@ -156,13 +156,13 @@ class SettingWindow(QDialog):
         api_keys = llm_connection_settings.get('api_keys',[])
         api_base = llm_connection_settings.get('api_base')
         try:
-            llm_service.client.set_api_config(api_keys=api_keys, api_base=api_base)
+            llm_service.adapter.set_api_config(api_keys=api_keys, api_base=api_base)
         except Exception as e:
             QMessageBox.warning(self, "API 配置错误", str(e))
             return
 
         model_params_settings = self.model_params_settings_page.get_model_params_settings()
-        llm_service.client.set_model_params(model_params_settings)
+        llm_service.adapter.set_model_params(model_params_settings)
 
         # 静默应用设置，不弹窗
         self.get_model_list()
@@ -174,7 +174,7 @@ class SettingWindow(QDialog):
         llm_service = self.service_manager.get_service("llm_service")
         try:
             # 使用test_connection=True进行API测试
-            llm_service.client.set_api_config(
+            llm_service.adapter.set_api_config(
                 api_keys=api_settings['api_keys'],
                 api_base=api_settings['api_base'],
                 test_connection=True
@@ -244,7 +244,7 @@ class SettingWindow(QDialog):
 
         # 获取当前设置并保存
         model_params_settings = self.model_params_settings_page.get_model_params_settings()
-        llm_service.client.set_model_params(model_params_settings)
+        llm_service.adapter.set_model_params(model_params_settings)
         self.save_user_settings()
 
     def handle_load_history(self, file_path):

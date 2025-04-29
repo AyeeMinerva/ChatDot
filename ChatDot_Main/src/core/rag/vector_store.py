@@ -39,17 +39,17 @@ class VectorStore:
         os.makedirs(self.persist_directory, exist_ok=True)
 
         try:
-            self.client = chromadb.PersistentClient(
+            self.adapter = chromadb.PersistentAdapter(
                 path=self.persist_directory,
                 settings=Settings(anonymized_telemetry=False)  # 禁用匿名遥测
             )
             # 获取或创建集合
-            self.collection = self.client.get_or_create_collection(name=self.collection_name)
+            self.collection = self.adapter.get_or_create_collection(name=self.collection_name)
             self.logger.info(f"ChromaDB 客户端已连接，使用集合 '{self.collection_name}'，存储于 '{self.persist_directory}'")
             self._initialized = True
         except Exception as e:
             self.logger.error(f"初始化 ChromaDB 失败: {e}", exc_info=True)
-            self.client = None
+            self.adapter = None
             self.collection = None
             raise ConnectionError(f"无法连接到 ChromaDB: {e}")
 
@@ -260,8 +260,8 @@ class VectorStore:
                 return True
                 
             # 删除集合并重新创建
-            self.client.delete_collection(self.collection_name)
-            self.collection = self.client.create_collection(name=self.collection_name)
+            self.adapter.delete_collection(self.collection_name)
+            self.collection = self.adapter.create_collection(name=self.collection_name)
             
             self.logger.info(f"已清空集合 '{self.collection_name}'，删除了 {count} 条记录。")
             return True
@@ -271,12 +271,12 @@ class VectorStore:
             
     def delete_collection(self) -> bool:
         """删除整个集合"""
-        if not self.client:
+        if not self.adapter:
             self.logger.error("ChromaDB 客户端未初始化，无法删除集合。")
             return False
             
         try:
-            self.client.delete_collection(self.collection_name)
+            self.adapter.delete_collection(self.collection_name)
             self.logger.info(f"已删除集合 '{self.collection_name}'。")
             # 从类实例缓存中移除
             key = f"{self.collection_name}:{self.persist_directory}"
@@ -301,11 +301,11 @@ class VectorStore:
                 logger.info(f"向量存储目录 '{persist_directory}' 不存在，返回空列表。")
                 return []
                 
-            client = chromadb.PersistentClient(
+            adapter = chromadb.PersistentAdapter(
                 path=persist_directory,
                 settings=Settings(anonymized_telemetry=False)
             )
-            collections = client.list_collections()
+            collections = adapter.list_collections()
             collection_names = [col.name for col in collections]
             logger.info(f"获取到 {len(collection_names)} 个集合: {', '.join(collection_names)}")
             return collection_names

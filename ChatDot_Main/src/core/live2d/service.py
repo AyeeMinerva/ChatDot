@@ -1,5 +1,5 @@
 import asyncio
-from live2d.client import Live2DClient
+from live2d.adapter import Live2DAdapter
 from live2d.settings import Live2DSettings
 from live2d.persistence import Live2DPersistence
 from global_managers.logger_manager import LoggerManager
@@ -7,13 +7,13 @@ from global_managers.logger_manager import LoggerManager
 class Live2DService:
     """
     Live2D 服务类
-    使用异步方式调用 Live2DClient 的功能，但提供同步接口
+    使用异步方式调用 Live2DAdapter 的功能，但提供同步接口
     """
     def __init__(self):
         self._initialized = False  # 初始化标记
         self.settings = Live2DSettings()
         self.persistence = Live2DPersistence()
-        self.client = None  # 延迟初始化
+        self.adapter = None  # 延迟初始化
 
     def initialize(self):
         """
@@ -36,10 +36,10 @@ class Live2DService:
         # 设置客户端 URL 和情感分析状态
         url = self.settings.get_setting("url")
         enable_emotion = self.settings.get_setting("initialize")
-        self.client = Live2DClient(server_url=url, enable_emotion=enable_emotion)
+        self.adapter = Live2DAdapter(server_url=url, enable_emotion=enable_emotion)
 
         if url:
-            self.client.set_server_url(url)
+            self.adapter.set_server_url(url)
         else:
             LoggerManager().get_logger().warning("警告: Live2D URL 未设置，无法初始化客户端")
 
@@ -57,7 +57,7 @@ class Live2DService:
         设置 Live2D 后端的服务器地址
         :param server_url: Live2D 后端的服务器地址
         """
-        self.client.set_server_url(server_url)
+        self.adapter.set_server_url(server_url)
         self.settings.update_setting("url", server_url)
         self.persistence.save_config({
             "url": server_url,
@@ -66,16 +66,16 @@ class Live2DService:
 
     async def _text_to_live2d_async(self, text: str):
         """
-        异步处理文本并调用 Live2DClient 的 text_to_live2d 方法
+        异步处理文本并调用 Live2DAdapter 的 text_to_live2d 方法
         :param text: 输入的文本
         """
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.client.text_to_live2d, text)
+        await loop.run_in_executor(None, self.adapter.text_to_live2d, text)
 
     def text_to_live2d(self, text: str):
         """
         此方法不会阻塞主线程
-        同步处理文本并调用 Live2DClient 的 text_to_live2d 方法
+        同步处理文本并调用 Live2DAdapter 的 text_to_live2d 方法
         :param text: 输入的文本
         """
         if not self.settings.get_setting("initialize"):
@@ -156,14 +156,14 @@ class Live2DService:
         self.settings.update_setting(key, value)
         self.save_config()
         if key == "url":
-            self.client.set_server_url(value)
+            self.adapter.set_server_url(value)
         elif key == "initialize":
             if value:  # 如果启用
                 LoggerManager().get_logger().debug("正在启用 Live2D 服务...")
                 self.initialize()
             else:  # 如果禁用
                 LoggerManager().get_logger().debug("正在禁用 Live2D 服务...")
-                self.client = None  # 清理客户端实例
+                self.adapter = None  # 清理客户端实例
                 self._initialized = False
 
     def shutdown(self):

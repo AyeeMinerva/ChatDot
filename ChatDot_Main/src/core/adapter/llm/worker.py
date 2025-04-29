@@ -6,10 +6,10 @@ from global_managers.logger_manager import LoggerManager
 class LLMWorker(threading.Thread):
     """LLM工作线程，使用队列实现实时数据流"""
     
-    def __init__(self, llm_client, messages: List[Dict], model_name: str = None, 
+    def __init__(self, llm_adapter, messages: List[Dict], model_name: str = None, 
                  model_params: Optional[Dict] = None):
         super().__init__()
-        self.llm_client = llm_client
+        self.llm_adapter = llm_adapter
         self.messages = messages
         self.model_name = model_name
         self.model_params = model_params or {}
@@ -21,7 +21,7 @@ class LLMWorker(threading.Thread):
     def run(self) -> None:
         """执行LLM通信，将响应放入队列"""
         try:
-            response = self.llm_client.communicate(
+            response = self.llm_adapter.communicate(
                 messages=self.messages,
                 model_name=self.model_name,
                 model_params_override=self.model_params

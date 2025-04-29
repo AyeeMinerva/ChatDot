@@ -11,7 +11,7 @@ import time
 from typing import Callable, List, Optional
 from global_managers.logger_manager import LoggerManager
 
-class STTClient:
+class STTAdapter:
     """
     STT客户端，处理与FunASR服务器的通信
     """

@@ -9,7 +9,7 @@ from typing import Callable, List, Dict, Any, Optional, Union
 from global_managers.logger_manager import LoggerManager
 from .settings import STTSettings
 from .persistence import STTPersistence
-from .client import STTClient
+from .adapter import STTAdapter
 
 # 导入本地服务器管理
 try:
@@ -25,7 +25,7 @@ class STTService:
         """初始化STT服务"""
         self.settings = STTSettings()
         self.persistence = STTPersistence()
-        self.client = STTClient()
+        self.adapter = STTAdapter()
         self.server_manager = None
         self.recognition_thread = None
         self.is_initialized = False
@@ -115,7 +115,7 @@ class STTService:
             port = self.settings.get_setting("port")
             use_ssl = self.settings.get_setting("use_ssl")
             
-            self.client.set_server(host, port, use_ssl)
+            self.adapter.set_server(host, port, use_ssl)
             
             self.is_initialized = True
             self.logger.info("STT服务初始化完成")
@@ -180,7 +180,7 @@ class STTService:
             port = self.settings.get_setting("port")
             use_ssl = self.settings.get_setting("use_ssl")
             
-            self.client.set_server(host, port, use_ssl)
+            self.adapter.set_server(host, port, use_ssl)
             
             self.is_initialized = True
             self.logger.info("STT服务初始化完成")
@@ -267,11 +267,11 @@ class STTService:
             return True
         
         # 设置客户端回调
-        self.client.add_segment_callback(self._on_segment)
+        self.adapter.add_segment_callback(self._on_segment)
         
         # 在新线程中启动语音识别
         def run_recognition():
-            asyncio.run(self.client.start())
+            asyncio.run(self.adapter.start())
             
         self.recognition_thread = threading.Thread(
             target=run_recognition,
@@ -297,11 +297,11 @@ class STTService:
             return True
         
         # 设置客户端回调
-        self.client.add_segment_callback(self._on_segment)
+        self.adapter.add_segment_callback(self._on_segment)
         
         # 在新线程中启动语音识别
         def run_recognition():
-            asyncio.run(self.client.start())
+            asyncio.run(self.adapter.start())
             
         self.recognition_thread = threading.Thread(
             target=run_recognition,
@@ -317,11 +317,11 @@ class STTService:
 
     def stop_recognition(self) -> None:
         """停止语音识别"""
-        if not self.client:
+        if not self.adapter:
             return
             
         self.logger.info("停止语音识别...")
-        self.client.stop()
+        self.adapter.stop()
         
         # 等待线程结束
         if self.recognition_thread and self.recognition_thread.is_alive():
@@ -332,11 +332,11 @@ class STTService:
         
     async def stop_recognition_async(self) -> None:
         """异步停止语音识别"""
-        if not self.client:
+        if not self.adapter:
             return
             
         self.logger.info("停止语音识别...")
-        self.client.stop()
+        self.adapter.stop()
         
         # 等待线程结束
         if self.recognition_thread and self.recognition_thread.is_alive():
