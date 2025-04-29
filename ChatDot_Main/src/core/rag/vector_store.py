@@ -1,5 +1,6 @@
 import chromadb
 from chromadb.config import Settings
+import chromadb.proto
 from global_managers.logger_manager import LoggerManager
 from .config import get_vector_store_settings
 import os
@@ -39,7 +40,7 @@ class VectorStore:
         os.makedirs(self.persist_directory, exist_ok=True)
 
         try:
-            self.adapter = chromadb.PersistentAdapter(
+            self.adapter = chromadb.PersistentClient(
                 path=self.persist_directory,
                 settings=Settings(anonymized_telemetry=False)  # 禁用匿名遥测
             )
@@ -301,7 +302,7 @@ class VectorStore:
                 logger.info(f"向量存储目录 '{persist_directory}' 不存在，返回空列表。")
                 return []
                 
-            adapter = chromadb.PersistentAdapter(
+            adapter = chromadb.PersistentClient(
                 path=persist_directory,
                 settings=Settings(anonymized_telemetry=False)
             )
