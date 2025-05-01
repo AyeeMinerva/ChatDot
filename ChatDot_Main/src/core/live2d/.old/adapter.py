@@ -1,4 +1,6 @@
 import requests
+#from emotion.adapter import EmotionAdapter
+from live2d.emotion.adapter import EmotionAdapter
 from global_managers.logger_manager import LoggerManager
 
 class Live2DAdapter:
@@ -9,6 +11,7 @@ class Live2DAdapter:
         :param enable_emotion: 是否启用情感分析
         """
         self.server_url = server_url
+        self.emotion_adapter = EmotionAdapter() if enable_emotion else None
 
     def set_server_url(self, server_url: str):
         """
@@ -27,10 +30,25 @@ class Live2DAdapter:
             return
 
         try:
-            #直接发送给后端
+            # 调用情感分析
+            if self.emotion_adapter:
+                emotion_result = self.emotion_adapter.analyze_emotion(text)
+                LoggerManager().get_logger().debug(f"情感分析结果: {emotion_result}")
+
+                # 判断返回值类型并提取情感标签
+                if isinstance(emotion_result, str):
+                    emotion = emotion_result  # 如果是字符串，直接使用
+                elif isinstance(emotion_result, list) and len(emotion_result) > 0:
+                    emotion = emotion_result[0]['label']  # 如果是列表，提取第一个元素的标签
+                else:
+                    LoggerManager().get_logger().warning("无法识别情感，使用默认情感 neutral")
+                    emotion = "neutral"
+            else:
+                LoggerManager().get_logger().warning("情感分析已禁用，使用默认情感 neutral")
+                emotion = "neutral"
 
             # 构造请求数据
-            payload = {"chunk": text}
+            payload = {"emotion": emotion}
             LoggerManager().get_logger().debug(f"发送情感数据到 Live2D 后端: {payload}")
 
             # 发送 POST 请求到 Live2D 后端

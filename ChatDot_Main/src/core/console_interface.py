@@ -1016,6 +1016,7 @@ class ConsoleInterface:
         
         while True:
             print("\nRAG 管理:")
+            print("0. 切换rag启用/禁用状态")
             print("1. 查看当前状态")
             print("2. 切换/管理记忆集合")
             print("3. 清空当前记忆")
@@ -1026,7 +1027,16 @@ class ConsoleInterface:
             
             choice = input("\n请选择 (1-7): ").strip()
             
-            if choice == "1":
+            if choice == "0":
+                # 切换 RAG 启用/禁用状态
+                current_status = admin.get_rag_settings()["enabled"]
+                new_status = not current_status
+                #rag_service.update_setting("initialize", new_status)
+                rag_service.update_setting("enabled", new_status)
+                status_str = "启用" if new_status else "禁用"
+                print(f"RAG 服务已{status_str}")
+            
+            elif choice == "1":
                 # 显示当前状态
                 current_collection = rag_service.collection_name
                 doc_count = rag_service.get_memory_count() if hasattr(rag_service, 'get_memory_count') else "未知"

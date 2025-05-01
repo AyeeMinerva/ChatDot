@@ -1,0 +1,1 @@
+此处是旧版live2d，直接传递emotion字段

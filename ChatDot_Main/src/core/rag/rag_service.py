@@ -35,24 +35,25 @@ class RAGService:
         self.embedding_service = None
         self.collection_name = None
         
-        self._initialized = False
+        self._initialized = self._enabled
         
     def _load_settings(self):
         """加载设置"""
         try:
             settings = self.persistence_manager.load("rag", "settings.json") or {}
-            self._enabled = settings.get("enabled", True)  # 默认启用
+            self._enabled = settings.get("enabled", None)
         except Exception as e:
             self.logger.warning(f"加载RAG设置失败，使用默认值: {e}")
-            self._enabled = True
+            #self._enabled = True
+            self.save_config()  # 保存默认配置
     
     def save_config(self):
         """保存当前配置"""
         try:
             # 构建完整的配置字典
             config = {
-                "enabled": self._enabled,
-                "embedding": self.settings_manager.get_setting("rag.embedding"),
+                "enabled": self.settings_manager.get_setting("rag","enabled"),
+                "embedding": self.settings_manager.get_setting("rag","embedding"),
                 "vector_store": {
                     "persist_directory": self.settings_manager.get_setting("rag.vector_store.persist_directory"),
                     "default_collection": self.collection_name or self.settings_manager.get_setting("rag.vector_store.default_collection"),

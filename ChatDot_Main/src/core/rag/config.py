@@ -7,7 +7,7 @@ import json
 
 # RAG 模块的默认设置
 DEFAULT_SETTINGS = {
-    "enabled": True,  # 服务启用状态
+    "enabled": False,  # 服务启用状态
     "embedding": {
         "mode": "local",  # local 或 api
         "local_model": {
@@ -22,7 +22,7 @@ DEFAULT_SETTINGS = {
         }
     },
     "vector_store": {
-        "persist_directory": os.path.join(get_core_path(), "SECRETS", "persistence", "rag_vector_store"),
+        "persist_directory": os.path.join(get_core_path(), "SECRETS", "persistence","rag", "rag_vector_store"),
         "default_collection": "chat_memory",
         "search_results": 3,  # 默认检索结果数量
         "similarity_threshold": 0.95  # 相似度阈值,用于删除操作
