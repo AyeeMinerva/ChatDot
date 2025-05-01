@@ -31,18 +31,18 @@ class Live2DAdapter:
 
             # 构造请求数据
             payload = {"chunk": text}
-            LoggerManager().get_logger().debug(f"发送情感数据到 Live2D 后端: {payload}")
+            LoggerManager().get_logger().debug(f"发送数据到 Live2D 后端: {payload}")
 
             # 发送 POST 请求到 Live2D 后端
             response = requests.post(self.server_url, json=payload)
 
             # 检查响应状态
             if response.status_code == 200:
-                LoggerManager().get_logger().debug("成功发送情感数据到 Live2D 后端")
+                LoggerManager().get_logger().debug("成功发送数据到 Live2D 后端")
             else:
                 LoggerManager().get_logger().warning(f"发送失败，状态码: {response.status_code}, 响应: {response.text}")
         except Exception as e:
-            LoggerManager().get_logger().warning(f"发送情感数据时发生错误: {e}")
+            LoggerManager().get_logger().warning(f"发送数据时发生错误: {e}")
 
 # 示例用法
 if __name__ == "__main__":

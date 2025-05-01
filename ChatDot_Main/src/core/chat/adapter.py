@@ -123,11 +123,11 @@ class ChatAdapter:
                     
                     #tts
                     if ttsenabled:
-                        LoggerManager().get_logger().debug(f"实时播放文本到语音: {chunk}")
+                        LoggerManager().get_logger().debug(f"实时播放文本到语音: realtime_play_text_to_speech({chunk})")
                         self.tts_service.realtime_play_text_to_speech(chunk)
                     #live2d
                     if self.live2d_service and self.live2d_service.is_live2d_enabled():
-                        LoggerManager().get_logger().debug(f"实时播放文本到Live2D: {chunk}")
+                        LoggerManager().get_logger().debug(f"实时播放文本到Live2D: realtime_text_to_live2d({chunk})")
                         self.live2d_service.realtime_text_to_live2d(chunk)
                         
                     yield chunk# 实时返回每个片段
