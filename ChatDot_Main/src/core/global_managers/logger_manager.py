@@ -2,6 +2,10 @@ import logging
 import sys
 import threading
 
+#替换print用的正则表达式
+#查找：print\((.*?)\)
+#替换为：logger.debug(\1)
+
 class LoggerManager:
     _instance = None
     _lock = threading.Lock()  # 确保线程安全
