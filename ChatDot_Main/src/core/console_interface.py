@@ -50,7 +50,7 @@ class ConsoleInterface:
                     print("未知命令。输入 'help' 查看可用命令")
                     
             except Exception as e:
-                print(f"错误: {str(e)}")
+                print(f"console_interface - run: 错误: {str(e)}")
 
         self.bootstrap.shutdown()
 
@@ -342,7 +342,8 @@ class ConsoleInterface:
         for handler in handlers:
             print(f"- {handler['name']} ({handler['id']})")
             print(f"  描述: {handler['description']}")
-            print(f"  版本: {handler['version']}\n")
+            if handler['version']:
+                print(f"  版本: {handler['version']}\n")
 
     def switch_handler(self):
         """切换上下文处理器"""
