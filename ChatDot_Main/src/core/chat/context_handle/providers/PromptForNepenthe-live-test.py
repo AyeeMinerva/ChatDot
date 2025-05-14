@@ -20,6 +20,11 @@ from typing import List, Dict, Tuple
 from global_managers.logger_manager import LoggerManager
 logger = LoggerManager().get_logger()
 
+# 新增导入
+from global_managers.ProcessCommunicator import ProcessCommunicator
+
+#region B站直播客户端
+
 class Proto:
     """消息协议处理类"""
     def __init__(self):
@@ -262,6 +267,7 @@ def start_bili_client_thread(idCode, appId, key, secret, host="https://live-open
     client_thread.start()
     return client_thread
 
+#endregion
 
 class ContextHandler(BaseContextHandler):
     """上下文处理器，单例模式实现，初始化时自动启动WebSocket连接"""
@@ -273,7 +279,12 @@ class ContextHandler(BaseContextHandler):
         if cls._instance is None:
             cls._instance = super(ContextHandler, cls).__new__(cls)
             cls._instance.comments_buffer = []  # 评论内容缓冲区
+            # 新增：用于存储游戏描述和选择
+            cls._instance.game_description = ""
+            cls._instance.game_choice = ""
             cls._instance._init_websocket()
+            # 新增：初始化ProcessCommunicator并注册handler
+            cls._instance._init_process_communicator()
         return cls._instance
     
     def __init__(self):
@@ -323,6 +334,32 @@ class ContextHandler(BaseContextHandler):
             except Exception as e:
                 logger.warning(f"启动WebSocket连接失败: {e}")
     
+    # 新增：初始化ProcessCommunicator并注册handler
+    def _init_process_communicator(self):
+        try:
+            # 只初始化一次
+            self.process_communicator = ProcessCommunicator.instance(is_server=True)
+            logger.info("ProcessCommunicator实例化成功: 作为服务器")
+            # 注册Game.Description
+            def game_desc_handler(msg, topic):
+                desc = msg.get("msg", "")
+                self.game_description = desc
+                logger.debug(f"收到Game.Description: {desc}")
+            self.process_communicator.add_handler("Game.Description", game_desc_handler)
+            logger.debug("注册Game.Description处理器成功")
+            # 注册Game.Choice
+            def game_choice_handler(msg, topic):
+                choice = msg.get("msg", "")
+                self.game_choice = choice
+                logger.debug(f"收到Game.Choice: {choice}")
+            self.process_communicator.add_handler("Game.Choice", game_choice_handler)
+            logger.debug("注册Game.Choice处理器成功")
+            # 启动连接
+            self.process_communicator.active = True
+            logger.info("ProcessCommunicator连接已启动")
+        except Exception as e:
+            logger.warning(f"初始化ProcessCommunicator失败: {e}")
+    
     def add_comments(self, comments):
         """添加评论到缓冲区
         
@@ -352,11 +389,15 @@ class ContextHandler(BaseContextHandler):
         #time
         messages[-1]["content"] += "<time>" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "</time>"
         #game state
-        messages[-1]["content"] += "<Game State>"+"None"+"</Game State>"
+        # 修改：插入Game.Description和Game.Choice
+        messages[-1]["content"] += "<Game State>"
+        messages[-1]["content"] += f"<Description>{self.game_description}</Description>"
+        messages[-1]["content"] += f"<Choice>{self.game_choice}</Choice>"
+        messages[-1]["content"] += "</Game State>"
         messages[-1]["content"] += "</States>"
         #endregion
         
-        #end region
+        #endregion
         """处理发送前的消息列表"""
         userCharacterPrompts=""
         charactorPropmts="""
