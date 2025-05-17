@@ -23,6 +23,7 @@ logger = LoggerManager().get_logger()
 # 新增导入
 from global_managers.ProcessCommunicator import ProcessCommunicator
 
+BILI_CLIENT_DEBUG_LOG = False  # 控制BiliClient相关日志输出
 #region B站直播客户端
 
 class Proto:
@@ -48,7 +49,7 @@ class Proto:
 
     def unpack(self, buf):
         if len(buf) < self.headerLen:
-            logger.debug("包头不够")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug("包头不够")
             return
         self.packetLen = struct.unpack('>i', buf[0:4])[0]
         self.headerLen = struct.unpack('>h', buf[4:6])[0]
@@ -56,10 +57,10 @@ class Proto:
         self.op = struct.unpack('>i', buf[8:12])[0]
         self.seq = struct.unpack('>i', buf[12:16])[0]
         if self.packetLen < 0 or self.packetLen > self.maxBody:
-            logger.debug(f"包体长不对 self.packetLen: {self.packetLen}  self.maxBody: {self.maxBody}")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug(f"包体长不对 self.packetLen: {self.packetLen}  self.maxBody: {self.maxBody}")
             return
         if self.headerLen != self.headerLen:
-            logger.debug("包头长度不对")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug("包头长度不对")
             return
         bodyLen = self.packetLen - self.headerLen
         self.body = buf[16:self.packetLen]
@@ -68,7 +69,7 @@ class Proto:
         if self.ver == 0:
             # 这里做回调
             body_str = self.body.decode('utf-8')
-            logger.debug(f"====> callback: {body_str}")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug(f"====> callback: {body_str}")
             
             try:
                 # 解析JSON数据
@@ -92,9 +93,9 @@ class Proto:
                     context_handler.add_comments([comment_data])
                     logger.info(f"已添加评论: {msg} (来自: {uname})")
             except json.JSONDecodeError:
-                logger.warning("JSON解析失败")
+                if BILI_CLIENT_DEBUG_LOG: logger.warning("JSON解析失败")
             except Exception as e:
-                logger.warning(f"处理消息时出错: {e}")
+                if BILI_CLIENT_DEBUG_LOG: logger.warning(f"处理消息时出错: {e}")
         else:
             return
 
@@ -167,7 +168,7 @@ class BiliClient:
         r = requests.post(url=postUrl, headers=headerMap,
                           data=params, verify=False)
         data = json.loads(r.content)
-        logger.debug(f"{data}")
+        if BILI_CLIENT_DEBUG_LOG: logger.debug(f"{data}")
 
         self.gameId = str(data['data']['game_info']['game_id'])
 
@@ -184,7 +185,7 @@ class BiliClient:
             r = requests.post(url=postUrl, headers=headerMap,
                           data=params, verify=False)
             data = json.loads(r.content)
-            logger.debug("[BiliClient] send appheartBeat success")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug("[BiliClient] send appheartBeat success")
 
 
     # 发送鉴权信息
@@ -198,9 +199,9 @@ class BiliClient:
         resp.unpack(buf)
         respBody = json.loads(resp.body)
         if respBody["code"] != 0:
-            logger.warning("auth 失败")
+            if BILI_CLIENT_DEBUG_LOG: logger.warning("auth 失败")
         else:
-            logger.debug("auth 成功")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug("auth 成功")
 
     # 发送心跳
     async def heartBeat(self, websocket):
@@ -209,11 +210,11 @@ class BiliClient:
             req = Proto()
             req.op = 2
             await websocket.send(req.pack())
-            logger.debug("[BiliClient] send heartBeat success")
+            if BILI_CLIENT_DEBUG_LOG: logger.debug("[BiliClient] send heartBeat success")
 
     # 读取信息
     async def recvLoop(self, websocket):
-        logger.debug("[BiliClient] run recv...")
+        if BILI_CLIENT_DEBUG_LOG: logger.debug("[BiliClient] run recv...")
         while True:
             recvBuf = await websocket.recv()
             resp = Proto()
@@ -222,14 +223,14 @@ class BiliClient:
     # 建立连接
     async def connect(self):
         addr, authBody = self.getWebsocketInfo()
-        logger.debug(f"{addr} {authBody}")
+        if BILI_CLIENT_DEBUG_LOG: logger.debug(f"{addr} {authBody}")
         websocket = await websockets.connect(addr)
         # 鉴权
         await self.auth(websocket, authBody)
         return websocket
 
     def __enter__(self):
-        logger.debug("[BiliClient] enter")
+        if BILI_CLIENT_DEBUG_LOG: logger.debug("[BiliClient] enter")
         return self
 
     def __exit__(self, type, value, trace):
@@ -239,7 +240,7 @@ class BiliClient:
         headerMap = self.sign(params)
         r = requests.post(url=postUrl, headers=headerMap,
                           data=params, verify=False)
-        logger.debug(f"[BiliClient] end app success {params}")
+        if BILI_CLIENT_DEBUG_LOG: logger.debug(f"[BiliClient] end app success {params}")
 
 
 def start_bili_client_thread(idCode, appId, key, secret, host="https://live-open.biliapi.com"):
