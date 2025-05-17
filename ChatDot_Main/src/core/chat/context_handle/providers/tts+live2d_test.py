@@ -303,15 +303,15 @@ NPC 行动:
 4.请确保输出的内容与之前的对话记录保持一致，避免出现逻辑上的不连贯或矛盾。
 5.请注意，输出的内容必须是角色的对话文本，是角色直接说出的话，不得包含任何其他形式的描述或旁白。
 6.具体标签内的的内容格式和格式要求如下：
-  1.`<live2d_emotion>`标签中的内容将会用来控制角色的live2d模型，其内容必须是角色的当前情感，与当前情境和角色设定、对话内容相符。此标签的内容必须是以下情感字符串之一：['happy', 'sad', 'angry', 'sleepy', 'admiration', 'amusement', 'anger', 'annoyance', 'approval', 'caring', 'confusion', 'curiosity', 'desire', 'disappointment', 'disapproval', 'disgust', 'embarrassment', 'excitement', 'fear', 'gratitude', 'grief', 'joy', 'love', 'nervousness', 'optimism', 'pride', 'realization', 'relief', 'remorse', 'sadness', 'surprise', 'neutral']。此标签内容必须仅包含上述情感字符串之一，且不允许有其他内容。(示例: `<live2d_emotion>happy</live2d_emotion>`)
+  1.`<live2d>`标签中的内容将会用来控制角色的live2d模型，其内容必须是角色的当前情感，与当前情境和角色设定、对话内容相符。此标签的内容必须是以下情感字符串之一：['happy', 'sad', 'angry', 'sleepy', 'admiration', 'amusement', 'anger', 'annoyance', 'approval', 'caring', 'confusion', 'curiosity', 'desire', 'disappointment', 'disapproval', 'disgust', 'embarrassment', 'excitement', 'fear', 'gratitude', 'grief', 'joy', 'love', 'nervousness', 'optimism', 'pride', 'realization', 'relief', 'remorse', 'sadness', 'surprise', 'neutral']。此标签内容必须仅包含上述情感字符串之一，且不允许有其他内容。(示例: `<live2d>happy</live2d>`)
   2.`<tts>`标签中的内容将会用来生成角色的语音，其内容必须是角色直接说出的话。此标签的内容必须是以下格式的字符串：`角色所说正文部分内容`。此标签内容必须仅包含角色直接说出的话，且不允许有其他内容。(示例: `<tts>你好呀。</tts>`)
 [/story plot settings]
 
 [story plot]
 示例:
-<live2d_emotion>
+<live2d>
 情感字符串之一
-</live2d_emotion>
+</live2d>
 <tts>
 角色所说正文部分内容
 </tts>

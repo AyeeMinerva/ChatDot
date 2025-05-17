@@ -26,9 +26,9 @@
 ```
 ### 输出:
 ```
-<live2d_emotion>
+<live2d>
 情感字符串之一
-</live2d_emotion>
+</live2d>
 <tts>
 角色所说正文部分内容
 </tts>

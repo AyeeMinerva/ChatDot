@@ -7,17 +7,20 @@ import time
 import numpy as np
 from global_managers.logger_manager import LoggerManager
 
+# 全局输出设备索引
+AUDIO_OUTPUT_DEVICE_INDEX = 8
+
 class AudioPlayer:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
             return cls._instance
 
-    def __init__(self):
+    def __init__(self, output_device_index=AUDIO_OUTPUT_DEVICE_INDEX):
         if not hasattr(self, 'initialized'):
             self.audio_queue = queue.Queue()
             self.play_thread = None
@@ -25,6 +28,7 @@ class AudioPlayer:
             self.first_chunk = True
             self.pyaudio = pyaudio.PyAudio()
             self.stream = None
+            self.output_device_index = output_device_index
             self.initialized = True
             #LoggerManager().get_logger().debug("AudioPlayer 初始化完成")
 
@@ -88,7 +92,8 @@ class AudioPlayer:
                         format=self.pyaudio.get_format_from_width(wav_file.getsampwidth()),
                         channels=wav_file.getnchannels(),
                         rate=wav_file.getframerate(),
-                        output=True
+                        output=True,
+                        output_device_index=self.output_device_index
                     )
                     
                     # 跳过WAV头，播放剩余部分
@@ -120,10 +125,10 @@ class AudioPlayer:
             self.pyaudio.terminate()
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls, output_device_index=AUDIO_OUTPUT_DEVICE_INDEX):
         """获取AudioPlayer单例"""
         if cls._instance is None:
-            cls._instance = AudioPlayer()
+            cls._instance = AudioPlayer(output_device_index)
         return cls._instance
 
 # 创建全局播放器实例
@@ -164,5 +169,5 @@ if __name__ == "__main__":
     if os.path.exists(wav_path):
         test_play_audio(wav_path)
     else:
-        LoggerManager().get_logger().warning(f"测试文件不存在: {wav_path}")
+        LoggerManager().get_logger().warning(f"测试文件不存在: {wav_path}") 
         LoggerManager().get_logger().warning("请修改为正确的WAV文件路径")

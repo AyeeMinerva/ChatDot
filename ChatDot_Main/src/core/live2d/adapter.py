@@ -19,7 +19,7 @@ class Live2DAdapter:
 
     def text_to_live2d(self, text: str):
         """
-        接收文本，分析情感，并发送到 Live2D 后端
+        接收文本并发送到 Live2D 后端
         :param text: 输入的文本
         """
         if not self.server_url:
