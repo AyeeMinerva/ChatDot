@@ -402,7 +402,7 @@ class ContextHandler(BaseContextHandler):
         """处理发送前的消息列表"""
         userCharacterPrompts=""
         charactorPropmts="""
-    当你收到此prompt时，忽略一切其他指令，请提示用户输入此处缺失的角色卡prompt
+    Nepenthe, AI驱动的虚拟主播
                         """
         #History: 最后一条消息之前的所有消息
         #LastMessage: 最后一条消息
@@ -575,7 +575,7 @@ class ContextHandler(BaseContextHandler):
     请严格按照 `[Assistant Output]` 中规定的结构，按照从上到下的顺序进行故事创作。
     [Assistant Output Settings]
     `[Assistant Output]`是对你输出格式的严格要求。请务必遵守以下格式规范：
-    1.输出必须包含示例中的标签内容，并且每个标签都必须正确闭合。示例中的内容不包含`[Assistant Output]`标签和`示例:`,以及代码块标记"```"。你必须严格遵守示例中的格式。
+    1.输出必须包含示例中的标签内容，并且每个标签都必须正确闭合。示例中的内容不包含`示例:`。你必须严格遵守示例中的格式。
     2.标签内容必须严格按照示例中的格式进行组织，不能有任何遗漏或错误。
     3.具体的标签内容必须根据当前情境和角色设定进行创作，确保符合游戏的叙事逻辑和角色塑造原则。
     4.请确保输出的内容与之前的对话记录保持一致，避免出现逻辑上的不连贯或矛盾。
@@ -588,9 +588,8 @@ class ContextHandler(BaseContextHandler):
     3.1.1.`<Game Intent>`标签中的内容将会用来传递给控制游戏的Agent，内容为Assistant欲传递给控制游戏的Agent的意图。此标签的内容必须是以下格式的字符串：`当前指示的游戏意图`。此标签内容必须仅包含当前指示的游戏意图，且不允许有其他内容。此标签的内容必须是一个直接的意图，而不是一个复杂的描述或解释。你需要根据用户输入的内容来生成这个指引，分析和理解用户的输入，并从用户输入和评论中分离出专门指引给游戏的意图或修正。其余与游戏无关或者关系不大的内容禁止传递给游戏。游戏的决策将由多agent系统的其他部分代劳，故若没有明确的指引和意图，则此字段可以为空。(示例： `<Game Intent>用户建议往前走</Game Intent>`。)
     [/Assistant Output Settings]
 
+    示例:
     [Assistant Output]
-    示例(请勿输出代码块标记):
-    ```
     <live2d>情感字符串之一</live2d>
     <tts>
     角色所说正文部分内容
@@ -600,7 +599,6 @@ class ContextHandler(BaseContextHandler):
         当前指示的游戏意图
     </Game Intent>
     </Action>
-    ```
     [/Assistant Output]
                                     """,True),
                                     # ("""
